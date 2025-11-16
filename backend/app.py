@@ -25,7 +25,7 @@ CORS(app,
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'azka.123',
+    'password': 'AH14@neena',
     'database': 'SmartHealthReminder'
 }
 
@@ -1141,5 +1141,491 @@ def delete_doctor(doctor_id):
         cursor.close()
         connection.close()
 
+# ------------------- Admin Users Endpoints -------------------
+def require_admin():
+    """Return True if the request is authenticated as an admin.
+
+    Check order:
+    1. Session (recommended normal flow)
+    2. Authorization header 'Bearer <user_id>' (dev/API fallback)
+    3. 'User-Id' header
+
+    If a header is present, verify the user's role from the DB.
+    """
+    # 1) session
+    if session.get('role') == 'admin':
+        return True
+
+    # 2) Authorization header
+    user_id = None
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        try:
+            user_id = int(auth_header.replace('Bearer ', ''))
+        except ValueError:
+            user_id = None
+
+    # 3) User-Id header
+    if user_id is None:
+        user_id_hdr = request.headers.get('User-Id')
+        if user_id_hdr:
+            try:
+                user_id = int(user_id_hdr)
+            except ValueError:
+                user_id = None
+
+    if user_id is None:
+        return False
+
+    # Verify role from DB
+    conn = get_db_connection()
+    if not conn:
+        return False
+    cur = None
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute('SELECT role FROM User WHERE user_id = %s', (user_id,))
+        row = cur.fetchone()
+        if row and row.get('role') == 'admin':
+            return True
+    except Exception as e:
+        print('require_admin DB check error:', e)
+    finally:
+        try:
+            if cur:
+                cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    return False
+
+
+@app.route('/api/admin/users', methods=['GET'])
+def admin_list_users():
+    if not require_admin():
+        return jsonify({'error': 'Admin privileges required'}), 403
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT user_id as id, name, email, role FROM User ORDER BY user_id DESC")
+        users = cursor.fetchall()
+        return jsonify({'success': True, 'users': users}), 200
+    except Error as e:
+        print('admin_list_users error:', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
+def admin_update_user(user_id):
+    if not require_admin():
+        return jsonify({'error': 'Admin privileges required'}), 403
+
+    data = request.json or {}
+    name = data.get('name')
+    email = data.get('email')
+    role = data.get('role')
+
+    if not name or not email or not role:
+        return jsonify({'error': 'name, email, and role are required'}), 400
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute("UPDATE User SET name=%s, email=%s, role=%s WHERE user_id=%s", (name, email, role, user_id))
+        connection.commit()
+        return jsonify({'success': True, 'message': 'User updated'}), 200
+    except Error as e:
+        connection.rollback()
+        print('admin_update_user error:', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+def admin_delete_user(user_id):
+    if not require_admin():
+        return jsonify({'error': 'Admin privileges required'}), 403
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = connection.cursor()
+        # Delete client-specific row if exists
+        try:
+            cursor.execute('DELETE FROM Client WHERE client_id = %s', (user_id,))
+        except Exception:
+            pass
+        cursor.execute('DELETE FROM User WHERE user_id = %s', (user_id,))
+        connection.commit()
+        return jsonify({'success': True, 'message': 'User deleted'}), 200
+    except Error as e:
+        connection.rollback()
+        print('admin_delete_user error:', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# ------------------- Admin Medicines Endpoints -------------------
+@app.route('/api/admin/medicines', methods=['GET'])
+def admin_list_medicines():
+    if not require_admin():
+        return jsonify({'error': 'Admin privileges required'}), 403
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT m.medicine_id AS id, m.client_id, m.name, m.dosage, m.note AS notes,
+                   u.name AS client_name
+            FROM Medicine m
+            LEFT JOIN User u ON m.client_id = u.user_id
+            ORDER BY m.name
+        """)
+        meds = cursor.fetchall()
+        return jsonify({'success': True, 'medicines': meds}), 200
+    except Error as e:
+        print('admin_list_medicines error:', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.route('/api/admin/medicines', methods=['POST'])
+def admin_add_medicine():
+    if not require_admin():
+        return jsonify({'error': 'Admin privileges required'}), 403
+
+    data = request.json or {}
+    name = data.get('name')
+    dosage = data.get('dosage')
+    notes = data.get('notes')
+    client_id = data.get('client_id')  # optional, may be null for global medicines
+
+    if not name or not dosage:
+        return jsonify({'error': 'name and dosage are required'}), 400
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute(
+            "INSERT INTO Medicine (client_id, name, dosage, note) VALUES (%s, %s, %s, %s)",
+            (client_id, name, dosage, notes)
+        )
+        medicine_id = cursor.lastrowid
+        connection.commit()
+        return jsonify({'success': True, 'medicine_id': medicine_id}), 201
+    except Error as e:
+        connection.rollback()
+        print('admin_add_medicine error:', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.route('/api/admin/medicines/<int:medicine_id>', methods=['PUT'])
+def admin_update_medicine(medicine_id):
+    if not require_admin():
+        return jsonify({'error': 'Admin privileges required'}), 403
+
+    data = request.json or {}
+    name = data.get('name')
+    dosage = data.get('dosage')
+    notes = data.get('notes')
+
+    if not name or not dosage:
+        return jsonify({'error': 'name and dosage are required'}), 400
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute(
+            "UPDATE Medicine SET name=%s, dosage=%s, note=%s WHERE medicine_id=%s",
+            (name, dosage, notes, medicine_id)
+        )
+        connection.commit()
+        return jsonify({'success': True, 'message': 'Medicine updated'}), 200
+    except Error as e:
+        connection.rollback()
+        print('admin_update_medicine error:', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.route('/api/admin/medicines/<int:medicine_id>', methods=['DELETE'])
+def admin_delete_medicine(medicine_id):
+    if not require_admin():
+        return jsonify({'error': 'Admin privileges required'}), 403
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = connection.cursor()
+        # delete related reminders first
+        try:
+            cursor.execute('DELETE FROM Reminder WHERE medicine_id = %s', (medicine_id,))
+        except Exception:
+            pass
+        cursor.execute('DELETE FROM Medicine WHERE medicine_id = %s', (medicine_id,))
+        connection.commit()
+        return jsonify({'success': True, 'message': 'Medicine deleted'}), 200
+    except Error as e:
+        connection.rollback()
+        print('admin_delete_medicine error:', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# ------------------- Admin Reminders Endpoints -------------------
+@app.route('/api/admin/reminders', methods=['GET'])
+def admin_list_reminders():
+    if not require_admin():
+        return jsonify({'error': 'Admin privileges required'}), 403
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT r.reminder_id as id, r.medicine_id, m.name as medicine_name, r.reminder_time, r.status, m.client_id
+            FROM Reminder r
+            JOIN Medicine m ON r.medicine_id = m.medicine_id
+            LEFT JOIN User u ON m.client_id = u.user_id
+            ORDER BY r.reminder_time DESC
+        """)
+        rows = cursor.fetchall()
+        # Convert datetime to string to make JSON serializable
+        reminders = []
+        for row in rows:
+            rt = row.get('reminder_time')
+            row['reminder_time'] = rt.strftime('%Y-%m-%d %H:%M:%S') if rt else None
+            reminders.append(row)
+        return jsonify({'success': True, 'reminders': reminders}), 200
+    except Error as e:
+        print('admin_list_reminders error:', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.route('/api/admin/reminders/<int:reminder_id>', methods=['DELETE'])
+def admin_delete_reminder(reminder_id):
+    if not require_admin():
+        return jsonify({'error': 'Admin privileges required'}), 403
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute('DELETE FROM Reminder WHERE reminder_id = %s', (reminder_id,))
+        connection.commit()
+        return jsonify({'success': True, 'message': 'Reminder deleted'}), 200
+    except Error as e:
+        connection.rollback()
+        print('admin_delete_reminder error:', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# ------------------- Admin Logs & Reports -------------------
+@app.route('/api/admin/logs', methods=['GET'])
+def admin_get_logs():
+    if not require_admin():
+        return jsonify({'error': 'Admin privileges required'}), 403
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = connection.cursor(dictionary=True)
+        # Check if Log table exists
+        cursor.execute("SHOW TABLES LIKE 'Log'")
+        if not cursor.fetchone():
+            return jsonify({'success': True, 'logs': []}), 200
+
+        cursor.execute("""
+            SELECT l.log_id as id, l.reminder_id, l.action, l.timestamp as created_at,
+                   r.medicine_id, m.name as medicine_name, m.client_id, u.name as client_name
+            FROM Log l
+            LEFT JOIN Reminder r ON l.reminder_id = r.reminder_id
+            LEFT JOIN Medicine m ON r.medicine_id = m.medicine_id
+            LEFT JOIN User u ON m.client_id = u.user_id
+            ORDER BY l.timestamp DESC
+            LIMIT 200
+        """)
+        rows = cursor.fetchall()
+        logs = []
+        for row in rows:
+            ca = row.get('created_at')
+            row['created_at'] = ca.strftime('%Y-%m-%d %H:%M:%S') if ca else None
+            logs.append(row)
+        return jsonify({'success': True, 'logs': logs}), 200
+    except Error as e:
+        print('admin_get_logs error:', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.route('/api/admin/reports/summary', methods=['GET'])
+def admin_reports_summary():
+    if not require_admin():
+        return jsonify({'error': 'Admin privileges required'}), 403
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = connection.cursor()
+        # Total users
+        cursor.execute('SELECT COUNT(*) FROM User')
+        users_count = cursor.fetchone()[0]
+
+        # Total medicines
+        cursor.execute('SELECT COUNT(*) FROM Medicine')
+        meds_count = cursor.fetchone()[0]
+
+        # Total reminders
+        cursor.execute('SELECT COUNT(*) FROM Reminder')
+        reminders_count = cursor.fetchone()[0]
+
+        # Completed reminders (overall)
+        cursor.execute("SELECT COUNT(*) FROM Reminder WHERE status = 'Completed'")
+        completed = cursor.fetchone()[0]
+
+        adherence = round((completed / reminders_count) * 100, 2) if reminders_count else 0.0
+
+        return jsonify({
+            'success': True,
+            'users': users_count,
+            'medicines': meds_count,
+            'reminders': reminders_count,
+            'completed_reminders': completed,
+            'adherence_percent': adherence
+        }), 200
+    except Error as e:
+        print('admin_reports_summary error:', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+# ------------------ Feature Flags ------------------
+@app.route('/api/feature-status', methods=['GET'])
+def feature_status():
+    """Public endpoint returning current feature flags."""
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    try:
+        cursor = connection.cursor()
+        # Ensure table exists
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS FeatureFlag (
+                flag_key VARCHAR(100) PRIMARY KEY,
+                flag_value VARCHAR(20)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """)
+        cursor.execute("SELECT flag_key, flag_value FROM FeatureFlag")
+        rows = cursor.fetchall()
+        flags = {row[0]: row[1] for row in rows}
+        return jsonify(flags), 200
+    except Error as e:
+        print('Feature status DB error:', e)
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.route('/api/admin/feature', methods=['POST'])
+def set_feature_flag():
+    """Admin-only endpoint to set a feature flag. Expects JSON { key, value }"""
+    # Require admin role in session
+    if session.get('role') != 'admin':
+        return jsonify({"error": "Admin privileges required"}), 403
+
+    data = request.json or {}
+    key = data.get('key')
+    value = data.get('value')
+    if not key:
+        return jsonify({"error": "Missing key"}), 400
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS FeatureFlag (
+                flag_key VARCHAR(100) PRIMARY KEY,
+                flag_value VARCHAR(20)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """)
+
+        # Normalize value to string
+        v = '1' if str(value) in ('1', 'true', 'True', 'True') or value is True else '0' if str(value) in ('0', 'false', 'False', 'False') or value is False else str(value)
+
+        cursor.execute(
+            "INSERT INTO FeatureFlag (flag_key, flag_value) VALUES (%s, %s) ON DUPLICATE KEY UPDATE flag_value = VALUES(flag_value)",
+            (key, v)
+        )
+        connection.commit()
+        return jsonify({"success": True, "key": key, "value": v}), 200
+    except Error as e:
+        connection.rollback()
+        print('Set feature DB error:', e)
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()

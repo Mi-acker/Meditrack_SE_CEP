@@ -66,30 +66,7 @@
             </tr>
           </thead>
           <tbody>
-            <!-- sample rows; replace with server data -->
-            <tr data-id="1">
-              <td>1</td>
-              <td>Ali Khan</td>
-              <td>ali@example.com</td>
-              <td>Customer</td>
-              <td>
-                
-                
-                <button class="delete-btn" onclick="deleteUser(this)">Delete</button>
-
-              </td>
-            </tr>
-
-            <tr data-id="2">
-              <td>2</td>
-              <td>Fatima Ahmed</td>
-              <td>fatima@example.com</td>
-              <td>Customer</td>
-              <td>
-                
-                <button class="delete-btn" onclick="deleteUser(this)">Delete</button>
-              </td>
-            </tr>
+            <!-- rows loaded from server -->
           </tbody>
         </table>
       </section>
@@ -121,13 +98,7 @@
             <tr><th>ID</th><th>Name</th><th>Dosage</th><th>Stock</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            <tr data-id="1">
-              <td>1</td><td>Panadol</td><td>500mg</td><td>200</td>
-              <td>
-                <button class="edit-btn" onclick="openMedEditModal(this)">Edit</button>
-                <button class="delete-btn" onclick="deleteMedicine(this)">Delete</button>
-              </td>
-            </tr>
+            <!-- medicines loaded from server -->
           </tbody>
         </table>
       </section>
@@ -159,10 +130,7 @@
             <tr><th>ID</th><th>User</th><th>Medicine</th><th>Time</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            <tr data-id="1">
-              <td>1</td><td>Ali Khan</td><td>Panadol</td><td>2025-10-19 08:00</td><td>Active</td>
-              <td><button class="delete-btn" onclick="deleteReminder(this)">Delete</button></td>
-            </tr>
+            <!-- reminders loaded from server -->
           </tbody>
         </table>
       </section>
@@ -170,10 +138,10 @@
       <!-- LOGS -->
       <section id="logs" class="section" style="display:none;">
         <h1>Medicine Logs</h1>
-        <table class="data-table" style="margin-top:10px;">
-          <thead><tr><th>User</th><th>Medicine</th><th>Date</th><th>Status</th></tr></thead>
+        <table id="logsTable" class="data-table" style="margin-top:10px;">
+          <thead><tr><th>When</th><th>User</th><th>Medicine</th><th>Action</th></tr></thead>
           <tbody>
-            <tr><td>Ali Khan</td><td>Panadol</td><td>2025-10-18</td><td>Taken</td></tr>
+            <!-- logs loaded from server -->
           </tbody>
         </table>
       </section>
@@ -209,6 +177,11 @@
             <div class="form-row">
               <label for="settingEmail">Notification Email</label>
               <input id="settingEmail" type="email" placeholder="admin@example.com" />
+            </div>
+
+            <div class="form-row">
+              <label for="feature_claude_haiku">Enable Claude Haiku 4.5 for all clients</label>
+              <input id="feature_claude_haiku" type="checkbox" />
             </div>
 
             <div class="form-actions settings-actions" style="margin-top:12px;">
@@ -314,22 +287,46 @@
       });
       document.querySelectorAll('.sidebar ul li').forEach(li => li.classList.remove('active'));
       if (caller) caller.classList.add('active');
+      
+      // Reload data when section is shown
+      if (id === 'users') loadUsers();
+      else if (id === 'medicines') loadMeds();
+      else if (id === 'reminders') loadReminders();
+      else if (id === 'logs') loadLogs();
+      else if (id === 'reports') loadReports();
     }
 
     function logout() {
-      alert('Logged out (demo).');
-      // In real app: call logout endpoint or window.location='/logout'
+      if (confirm('Are you sure you want to logout?')) {
+        fetch('/logout', {
+          method: 'POST',
+          credentials: 'include'
+        }).then(response => {
+          if (response.ok) {
+            window.location.href = '/login.html';
+          } else {
+            alert('Logout failed');
+          }
+        }).catch(error => {
+          console.error('Logout error:', error);
+          alert('Logout error: ' + error.message);
+        });
+      }
     }
 
     // Generic modals
     function closeAdminModal(id) { document.getElementById(id).style.display = 'none'; }
     function openAdminModal(id) { document.getElementById(id).style.display = 'flex'; document.getElementById(id).style.alignItems = 'center'; }
+    // backward-compatible alias used in some handlers
+    function closeModal(id) { closeAdminModal(id); }
 
     // ========== USER actions ==========
     let currentUserRow = null;
+    let editingUserId = null;
     function openUserEditModal(btn) {
       const row = btn.closest('tr');
       currentUserRow = row;
+      editingUserId = row.getAttribute('data-id');
       const name = row.children[1].textContent;
       const email = row.children[2].textContent;
       const role = row.children[3].textContent;
@@ -338,16 +335,34 @@
       document.getElementById('uEditRole').value = role;
       openAdminModal('userEditModal');
     }
-    function saveUserEdit() {
-      if (!currentUserRow) return;
-      const name = document.getElementById('uEditName').value;
-      const email = document.getElementById('uEditEmail').value;
+
+    async function saveUserEdit() {
+      if (!currentUserRow || !editingUserId) return;
+      const name = document.getElementById('uEditName').value.trim();
+      const email = document.getElementById('uEditEmail').value.trim();
       const role = document.getElementById('uEditRole').value;
-      currentUserRow.children[1].textContent = name;
-      currentUserRow.children[2].textContent = email;
-      currentUserRow.children[3].textContent = role;
-      closeModal('userEditModal');
-      alert('User updated (demo). In production this will call backend API.');
+      if (!name || !email) { alert('Name and email required'); return; }
+
+      try {
+        const res = await fetch(`/api/admin/users/${editingUserId}`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, role })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to update user');
+        }
+        currentUserRow.children[1].textContent = name;
+        currentUserRow.children[2].textContent = email;
+        currentUserRow.children[3].textContent = role;
+        closeAdminModal('userEditModal');
+        alert('User updated');
+      } catch (e) {
+        console.error('saveUserEdit error', e);
+        alert('Failed to update user: ' + e.message);
+      }
     }
 
     function openUserResetModal(btn) {
@@ -368,68 +383,120 @@
 
     function deleteUser(btn) {
       const row = btn.closest('tr');
+      const id = row.getAttribute('data-id');
       const name = row.children[1].textContent;
       document.getElementById('confirmTitle').textContent = 'Delete User';
       document.getElementById('confirmMessage').textContent = `Delete user "${name}"? This action cannot be undone.`;
       openAdminModal('confirmModal');
       const yes = document.getElementById('confirmYes');
-      // remove existing handlers
-      yes.onclick = function() {
-        row.remove();
-        closeAdminModal('confirmModal');
-        alert('User deleted (demo). In production this will call backend API.');
+      yes.onclick = async function() {
+        try {
+          const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE', credentials: 'include' });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to delete user');
+          }
+          row.remove();
+          closeAdminModal('confirmModal');
+          alert('User deleted');
+          updateStats();
+        } catch (e) {
+          console.error('deleteUser error', e);
+          alert('Failed to delete user: ' + e.message);
+        }
       };
     }
 
     // ========== MEDICINE actions ==========
     let currentMedRow = null;
-    function addMedicine() {
+    async function addMedicine() {
       const name = document.getElementById('newMedName').value.trim();
       const dose = document.getElementById('newMedDose').value.trim();
-      const stock = document.getElementById('newMedStock').value.trim() || '—';
+      const stock = document.getElementById('newMedStock').value.trim() || '';
       if (!name || !dose) { alert('Please enter medicine name and dosage'); return; }
-      const tbody = document.querySelector('#medTable tbody');
-      const newRow = document.createElement('tr');
-      // give a simple new id (in production use server id)
-      const newId = Date.now();
-      newRow.setAttribute('data-id', newId);
-      newRow.innerHTML = `<td>${newId}</td><td>${escapeHtml(name)}</td><td>${escapeHtml(dose)}</td><td>${escapeHtml(stock)}</td>
-        <td><button onclick="openMedEditModal(this)">Edit</button> <button class="delete-btn" onclick="deleteMedicine(this)">Delete</button></td>`;
-      tbody.appendChild(newRow);
-      document.getElementById('newMedName').value = '';
-      document.getElementById('newMedDose').value = '';
-      document.getElementById('newMedStock').value = '';
-      updateStats();
+
+      try {
+        const res = await fetch('/api/admin/medicines', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, dosage: dose, notes: stock })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to add medicine');
+        }
+        const data = await res.json();
+        // reload meds from server
+        await loadMeds();
+        document.getElementById('newMedName').value = '';
+        document.getElementById('newMedDose').value = '';
+        document.getElementById('newMedStock').value = '';
+        alert('Medicine added');
+      } catch (e) {
+        console.error('addMedicine error', e);
+        alert('Failed to add medicine: ' + e.message);
+      }
     }
 
     function openMedEditModal(btn) {
       const row = btn.closest('tr');
       currentMedRow = row;
+      editingMedId = row.getAttribute('data-id');
       document.getElementById('medEditName').value = row.children[1].textContent;
       document.getElementById('medEditDose').value = row.children[2].textContent;
       document.getElementById('medEditStock').value = row.children[3].textContent === '—' ? '' : row.children[3].textContent;
       openAdminModal('medEditModal');
     }
-    function saveMedEdit() {
-      if (!currentMedRow) return;
-      currentMedRow.children[1].textContent = document.getElementById('medEditName').value;
-      currentMedRow.children[2].textContent = document.getElementById('medEditDose').value;
-      currentMedRow.children[3].textContent = document.getElementById('medEditStock').value || '—';
-      closeAdminModal('medEditModal');
-      alert('Medicine updated (demo).');
+    async function saveMedEdit() {
+      if (!currentMedRow || !editingMedId) return;
+      const name = document.getElementById('medEditName').value.trim();
+      const dose = document.getElementById('medEditDose').value.trim();
+      const notes = document.getElementById('medEditStock').value.trim();
+      if (!name || !dose) { alert('Name and dosage required'); return; }
+
+      try {
+        const res = await fetch(`/api/admin/medicines/${editingMedId}`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, dosage: dose, notes })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to update medicine');
+        }
+        await loadMeds();
+        closeAdminModal('medEditModal');
+        alert('Medicine updated');
+      } catch (e) {
+        console.error('saveMedEdit error', e);
+        alert('Failed to update medicine: ' + e.message);
+      }
     }
 
     function deleteMedicine(btn) {
       const row = btn.closest('tr');
+      const id = row.getAttribute('data-id');
       const name = row.children[1].textContent;
       document.getElementById('confirmTitle').textContent = 'Delete Medicine';
       document.getElementById('confirmMessage').textContent = `Delete medicine "${name}"? This will remove it for all users.`;
       openAdminModal('confirmModal');
-      document.getElementById('confirmYes').onclick = function() {
-        row.remove();
-        closeAdminModal('confirmModal');
-        alert('Medicine deleted (demo).');
-        updateStats();
+      document.getElementById('confirmYes').onclick = async function() {
+        try {
+          const res = await fetch(`/api/admin/medicines/${id}`, { method: 'DELETE', credentials: 'include' });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to delete medicine');
+          }
+          await loadMeds();
+          closeAdminModal('confirmModal');
+          alert('Medicine deleted');
+          updateStats();
+        } catch (e) {
+          console.error('deleteMedicine error', e);
+          alert('Failed to delete medicine: ' + e.message);
+        }
       };
     }
 
@@ -484,22 +551,34 @@
 
     function deleteReminder(btn) {
       const row = btn.closest('tr');
+      const id = row.getAttribute('data-id');
       const user = row.children[1].textContent;
       const med = row.children[2].textContent;
       document.getElementById('confirmTitle').textContent = 'Delete Reminder';
       document.getElementById('confirmMessage').textContent = `Delete reminder for ${user} - ${med}?`;
       openAdminModal('confirmModal');
-      document.getElementById('confirmYes').onclick = function() {
-        row.remove();
-        closeAdminModal('confirmModal');
-        updateStats();
-        alert('Reminder deleted (demo).');
+      document.getElementById('confirmYes').onclick = async function() {
+        try {
+          const res = await fetch(`/api/admin/reminders/${id}`, { method: 'DELETE', credentials: 'include' });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to delete reminder');
+          }
+          await loadReminders();
+          closeAdminModal('confirmModal');
+          updateStats();
+          alert('Reminder deleted');
+        } catch (e) {
+          console.error('deleteReminder error', e);
+          alert('Failed to delete reminder: ' + e.message);
+        }
       };
     }
 
     // Helpers
     function escapeHtml(str) {
-      return str.replace(/[&<>"'`=\/]/g, function(s) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#47;','`':'&#96;','=':'&#61;'})[s]; });
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>"'`=\/]/g, function(s) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#47;','`':'&#96;','=':'&#61;'})[s]; });
     }
 
     function updateStats() {
@@ -512,10 +591,194 @@
       document.getElementById('stat-reminders').textContent = remCount;
     }
 
-    function updateSettings() {
+    async function updateSettings() {
       const name = document.getElementById('settingName').value.trim();
       const email = document.getElementById('settingEmail').value.trim();
-      alert(`Settings saved (demo)\nName: ${name}\nEmail: ${email}`);
+      const enabled = document.getElementById('feature_claude_haiku').checked;
+
+      try {
+        const res = await fetch('/api/admin/feature', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ key: 'claude_haiku_4_5', value: enabled ? '1' : '0' })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to save feature flag');
+        }
+
+        const result = await res.json();
+        alert(`Settings saved\nName: ${name}\nEmail: ${email}\nClaude Haiku 4.5: ${result.value === '1' ? 'Enabled' : 'Disabled'}`);
+      } catch (e) {
+        console.error('Error saving settings:', e);
+        alert('Failed to save settings: ' + e.message);
+      }
+    }
+
+    async function loadFeatureStatus() {
+      try {
+        const res = await fetch('/api/feature-status', { credentials: 'include' });
+        if (!res.ok) return;
+        const flags = await res.json();
+        const val = flags && (flags['claude_haiku_4_5'] || flags['claude_haiku_4.5'] || flags['claude_haiku']) || '0';
+        const enabled = val === '1' || val === 'true' || val === true;
+        const el = document.getElementById('feature_claude_haiku');
+        if (el) el.checked = enabled;
+      } catch (e) {
+        console.error('Could not load feature status', e);
+      }
+    }
+
+    // Load users for the admin users table
+    async function loadUsers() {
+      const tbody = document.querySelector('#usersTable tbody');
+      tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+      try {
+        const res = await fetch('/api/admin/users', { credentials: 'include' });
+        if (!res.ok) {
+          tbody.innerHTML = '<tr><td colspan="5">Failed to load users</td></tr>';
+          return;
+        }
+        const data = await res.json();
+        const users = (data && data.users) || [];
+        if (!users.length) {
+          tbody.innerHTML = '<tr><td colspan="5">No users found</td></tr>';
+        } else {
+          tbody.innerHTML = '';
+          users.forEach(u => {
+            const tr = document.createElement('tr');
+            tr.setAttribute('data-id', u.id);
+            tr.innerHTML = `<td>${u.id}</td><td>${escapeHtml(u.name || '')}</td><td>${escapeHtml(u.email || '')}</td><td>${escapeHtml(u.role || '')}</td>
+              <td>
+                <button class="delete-btn" onclick="deleteUser(this)">Delete</button>
+              </td>`;
+            tbody.appendChild(tr);
+          });
+        }
+        updateStats();
+      } catch (e) {
+        console.error('loadUsers error', e);
+        tbody.innerHTML = '<tr><td colspan="5">Error loading users</td></tr>';
+      }
+    }
+
+    // Load medicines for admin
+    let editingMedId = null;
+    async function loadMeds() {
+      const tbody = document.querySelector('#medTable tbody');
+      tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+      try {
+        const res = await fetch('/api/admin/medicines', { credentials: 'include' });
+        if (!res.ok) {
+          tbody.innerHTML = '<tr><td colspan="5">Failed to load medicines</td></tr>';
+          return;
+        }
+        const data = await res.json();
+        const meds = (data && data.medicines) || [];
+        if (!meds.length) {
+          tbody.innerHTML = '<tr><td colspan="5">No medicines found</td></tr>';
+        } else {
+          tbody.innerHTML = '';
+          meds.forEach(m => {
+            const tr = document.createElement('tr');
+            tr.setAttribute('data-id', m.id);
+            tr.innerHTML = `<td>${m.id}</td><td>${escapeHtml(m.name || '')}</td><td>${escapeHtml(m.dosage || '')}</td><td>${escapeHtml(m.notes || '')}</td>
+              <td>
+                <button class="edit-btn" onclick="openMedEditModal(this)">Edit</button>
+                <button class="delete-btn" onclick="deleteMedicine(this)">Delete</button>
+              </td>`;
+            tbody.appendChild(tr);
+          });
+        }
+        updateStats();
+      } catch (e) {
+        console.error('loadMeds error', e);
+        tbody.innerHTML = '<tr><td colspan="5">Error loading medicines</td></tr>';
+      }
+    }
+
+    // Load admin reminders
+    async function loadReminders() {
+      const tbody = document.querySelector('#remTable tbody');
+      tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+      try {
+        const res = await fetch('/api/admin/reminders', { credentials: 'include' });
+        console.log('loadReminders response status:', res.status);
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error('loadReminders error response:', errText);
+          tbody.innerHTML = '<tr><td colspan="6">Failed to load reminders</td></tr>';
+          return;
+        }
+        const data = await res.json();
+        console.log('loadReminders data:', data);
+        const rems = (data && data.reminders) || [];
+        if (!rems.length) {
+          tbody.innerHTML = '<tr><td colspan="6">No reminders found</td></tr>';
+        } else {
+          tbody.innerHTML = '';
+          rems.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.setAttribute('data-id', r.id);
+            const displayTime = r.reminder_time ? new Date(r.reminder_time).toLocaleString() : '';
+            tr.innerHTML = `<td>${r.id}</td><td>${escapeHtml(r.client_id || '')}</td><td>${escapeHtml(r.medicine_name || '')}</td><td>${escapeHtml(displayTime)}</td><td>${escapeHtml(r.status || '')}</td>
+              <td><button class="delete-btn" onclick="deleteReminder(this)">Delete</button></td>`;
+            tbody.appendChild(tr);
+          });
+        }
+        updateStats();
+      } catch (e) {
+        console.error('loadReminders error', e);
+        tbody.innerHTML = '<tr><td colspan="6">Error loading reminders</td></tr>';
+      }
+    }
+
+    // Load logs
+    async function loadLogs() {
+      const tbody = document.querySelector('#logsTable tbody');
+      tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+      try {
+        const res = await fetch('/api/admin/logs', { credentials: 'include' });
+        if (!res.ok) {
+          tbody.innerHTML = '<tr><td colspan="4">Failed to load logs</td></tr>';
+          return;
+        }
+        const data = await res.json();
+        const logs = (data && data.logs) || [];
+        if (!logs.length) {
+          tbody.innerHTML = '<tr><td colspan="4">No logs found</td></tr>';
+        } else {
+          tbody.innerHTML = '';
+          logs.forEach(l => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${escapeHtml(l.created_at || '')}</td><td>${escapeHtml(l.client_name || '')}</td><td>${escapeHtml(l.medicine_name || '')}</td><td>${escapeHtml(l.action || '')}</td>`;
+            tbody.appendChild(tr);
+          });
+        }
+      } catch (e) {
+        console.error('loadLogs error', e);
+        tbody.innerHTML = '<tr><td colspan="4">Error loading logs</td></tr>';
+      }
+    }
+
+    // Load reports summary
+    async function loadReports() {
+      try {
+        const res = await fetch('/api/admin/reports/summary', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.success) {
+          document.getElementById('report-adherence').textContent = (data.adherence_percent || 0) + '%';
+          document.getElementById('report-sent').textContent = data.reminders || data.reminders_count || data.reminders_count || data.reminders_count || data.reminders_count || data.reminders || 0;
+          document.getElementById('report-meds').textContent = data.medicines || 0;
+          // update users stat card too
+          if (document.getElementById('stat-users')) document.getElementById('stat-users').textContent = data.users || 0;
+        }
+      } catch (e) {
+        console.error('loadReports error', e);
+      }
     }
 
     // Close modals when clicking outside modal-content
@@ -525,8 +788,24 @@
       });
     });
 
-    // initialize stats on load
-    updateStats();
+    // initialize: load users, medicines, reminders, logs, reports and feature flags
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        loadUsers();
+        loadMeds();
+        loadReminders();
+        loadLogs();
+        loadReports();
+        loadFeatureStatus();
+      });
+    } else {
+      loadUsers();
+      loadMeds();
+      loadReminders();
+      loadLogs();
+      loadReports();
+      loadFeatureStatus();
+    }
   </script>
   
 

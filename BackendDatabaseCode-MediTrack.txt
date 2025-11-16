@@ -140,4 +140,6 @@ _Link Admin User
 INSERT INTO Admin (admin_id, username, last_login)
 VALUES (1, 'aleena', '2025-10-19 13:12:52');
 
-
+--some changes in reminder table
+ALTER TABLE Reminder 
+MODIFY COLUMN status ENUM('Pending', 'Triggered', 'Completed', 'Missed') DEFAULT 'Pending';
