@@ -230,7 +230,7 @@
       <select id="uEditRole"><option>Customer</option><option>Admin</option></select>
       <div class="form-actions" style="margin-top:12px;">
         <button class="btn btn-primary" onclick="saveUserEdit()">Save</button>
-        <button class="btn btn-secondary" onclick="closeModal('userEditModal')">Cancel</button>
+        <button class="btn btn-secondary" onclick="closeAdminModal('userEditModal')">Cancel</button>
       </div>
     </div>
   </div>
@@ -243,7 +243,7 @@
       <label>New password</label><input id="uNewPassword" type="password" />
       <div class="form-actions" style="margin-top:12px;">
         <button class="btn btn-primary" onclick="saveUserReset()">Update</button>
-        <button class="btn btn-secondary" onclick="closeModal('userResetModal')">Cancel</button>
+        <button class="btn btn-secondary" onclick="closeAdminModal('userResetModal')">Cancel</button>
       </div>
     </div>
   </div>
@@ -253,7 +253,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h2 class="modal-title">Edit Medicine</h2>
-        <button class="close-btn" onclick="closeModal('medEditModal')">&times;</button>
+        <button class="close-btn" onclick="closeAdminModal('medEditModal')">&times;</button>
       </div>
 
       <div class="form-group-med">
@@ -286,7 +286,7 @@
       <p id="confirmMessage">Are you sure?</p>
       <div class="form-actions" style="margin-top:12px;">
         <button class="btn btn-primary" id="confirmYes">Yes</button>
-        <button class="btn btn-secondary" onclick="closeModal('confirmModal')">No</button>
+        <button class="btn btn-secondary" onclick="closeAdminModal('confirmModal')">No</button>
       </div>
     </div>
   </div>
@@ -294,14 +294,14 @@
   <!-- Modal (Reminder Edit) -->
   <div id="remEditModal" class="modal">
     <div class="modal-content">
-      <button class="close" onclick="closeModal('remEditModal')">&times;</button>
+      <button class="close" onclick="closeAdminModal('remEditModal')">&times;</button>
       <h2>Edit Reminder</h2>
       <label>User</label><input id="remEditUser" type="text" />
       <label>Medicine</label><input id="remEditMed" type="text" />
       <label>Time</label><input id="remEditTime" type="datetime-local" />
       <div class="form-actions" style="margin-top:12px;">
         <button class="btn btn-primary" onclick="saveRemEdit()">Save</button>
-        <button class="btn btn-secondary" onclick="closeModal('remEditModal')">Cancel</button>
+        <button class="btn btn-secondary" onclick="closeAdminModal('remEditModal')">Cancel</button>
       </div>
     </div>
   </div>
@@ -322,8 +322,8 @@
     }
 
     // Generic modals
-    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-    function openModal(id) { document.getElementById(id).style.display = 'flex'; document.getElementById(id).style.alignItems = 'center'; }
+    function closeAdminModal(id) { document.getElementById(id).style.display = 'none'; }
+    function openAdminModal(id) { document.getElementById(id).style.display = 'flex'; document.getElementById(id).style.alignItems = 'center'; }
 
     // ========== USER actions ==========
     let currentUserRow = null;
@@ -336,7 +336,7 @@
       document.getElementById('uEditName').value = name;
       document.getElementById('uEditEmail').value = email;
       document.getElementById('uEditRole').value = role;
-      openModal('userEditModal');
+      openAdminModal('userEditModal');
     }
     function saveUserEdit() {
       if (!currentUserRow) return;
@@ -356,13 +356,13 @@
       const email = row.children[2].textContent;
       document.getElementById('uResetEmailText').textContent = 'Reset password for: ' + email;
       document.getElementById('uNewPassword').value = '';
-      openModal('userResetModal');
+      openAdminModal('userResetModal');
     }
     function saveUserReset() {
       const newPw = document.getElementById('uNewPassword').value;
       if (!newPw) { alert('Enter new password'); return; }
       // call backend in production
-      closeModal('userResetModal');
+      closeAdminModal('userResetModal');
       alert('Password has been reset (demo).');
     }
 
@@ -371,12 +371,12 @@
       const name = row.children[1].textContent;
       document.getElementById('confirmTitle').textContent = 'Delete User';
       document.getElementById('confirmMessage').textContent = `Delete user "${name}"? This action cannot be undone.`;
-      openModal('confirmModal');
+      openAdminModal('confirmModal');
       const yes = document.getElementById('confirmYes');
       // remove existing handlers
       yes.onclick = function() {
         row.remove();
-        closeModal('confirmModal');
+        closeAdminModal('confirmModal');
         alert('User deleted (demo). In production this will call backend API.');
       };
     }
@@ -408,14 +408,14 @@
       document.getElementById('medEditName').value = row.children[1].textContent;
       document.getElementById('medEditDose').value = row.children[2].textContent;
       document.getElementById('medEditStock').value = row.children[3].textContent === '—' ? '' : row.children[3].textContent;
-      openModal('medEditModal');
+      openAdminModal('medEditModal');
     }
     function saveMedEdit() {
       if (!currentMedRow) return;
       currentMedRow.children[1].textContent = document.getElementById('medEditName').value;
       currentMedRow.children[2].textContent = document.getElementById('medEditDose').value;
       currentMedRow.children[3].textContent = document.getElementById('medEditStock').value || '—';
-      closeModal('medEditModal');
+      closeAdminModal('medEditModal');
       alert('Medicine updated (demo).');
     }
 
@@ -424,10 +424,10 @@
       const name = row.children[1].textContent;
       document.getElementById('confirmTitle').textContent = 'Delete Medicine';
       document.getElementById('confirmMessage').textContent = `Delete medicine "${name}"? This will remove it for all users.`;
-      openModal('confirmModal');
+      openAdminModal('confirmModal');
       document.getElementById('confirmYes').onclick = function() {
         row.remove();
-        closeModal('confirmModal');
+        closeAdminModal('confirmModal');
         alert('Medicine deleted (demo).');
         updateStats();
       };
@@ -469,7 +469,7 @@
       } catch(e) {
         document.getElementById('remEditTime').value = '';
       }
-      openModal('remEditModal');
+      openAdminModal('remEditModal');
     }
 
     function saveRemEdit() {
@@ -478,7 +478,7 @@
       currentRemRow.children[2].textContent = document.getElementById('remEditMed').value;
       const t = document.getElementById('remEditTime').value;
       currentRemRow.children[3].textContent = t ? (new Date(t)).toLocaleString() : currentRemRow.children[3].textContent;
-      closeModal('remEditModal');
+      closeAdminModal('remEditModal');
       alert('Reminder updated (demo).');
     }
 
@@ -488,10 +488,10 @@
       const med = row.children[2].textContent;
       document.getElementById('confirmTitle').textContent = 'Delete Reminder';
       document.getElementById('confirmMessage').textContent = `Delete reminder for ${user} - ${med}?`;
-      openModal('confirmModal');
+      openAdminModal('confirmModal');
       document.getElementById('confirmYes').onclick = function() {
         row.remove();
-        closeModal('confirmModal');
+        closeAdminModal('confirmModal');
         updateStats();
         alert('Reminder deleted (demo).');
       };

@@ -98,8 +98,10 @@ async function apiGetTodayMedications() {
         const response = await fetch(`${API_BASE_URL}/api/medications/today`, {
             method: 'GET', 
             headers: {
-                'Authorization': `Bearer ${user.user_id}`  // FIXED: user.user_id not user.user
-            }
+                'Authorization': `Bearer ${user.user_id}`,
+                'User-Id': user.user_id  // Add this fallback header
+            },
+            credentials: 'include'  // Important for session cookies
         });
 
         const data = await response.json();
@@ -109,6 +111,7 @@ async function apiGetTodayMedications() {
         return { success: false, data: { error: 'Network error. Please try again.' } };
     }
 }
+
 async function apiAddMedication(medicationData) {
     try {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -117,10 +120,11 @@ async function apiAddMedication(medicationData) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.user_id}`  // ADD THIS LINE
+                'Authorization': `Bearer ${user.user_id}`,
+                'User-Id': user.user_id  // ADD THIS LINE
             },
-            body: JSON.stringify(medicationData)
-            // Remove credentials: 'include'
+            body: JSON.stringify(medicationData),
+            credentials: 'include'
         });
 
         const data = await response.json();
@@ -171,21 +175,26 @@ async function apiDeleteMedication(medicationId) {
         return { success: false, data: { error: 'Network error. Please try again.' } }; // ← AND THIS ONE
     }
 }
+
 async function apiUpdateMedicationStatus(medicineId, status) {
     try {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        console.log(`🔄 Calling API to update medication ${medicineId} status to ${status}`);
         
         const response = await fetch(`${API_BASE_URL}/api/medications/${medicineId}/status`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.user_id}`  // ADD THIS LINE
+                'Authorization': `Bearer ${user.user_id}`,
+                'User-Id': user.user_id
             },
             body: JSON.stringify({ status })
-            // Remove credentials: 'include'
         });
 
         const data = await response.json();
+        console.log(`📊 Status update API response:`, data);
+        
         return { success: response.ok, data };
     } catch (error) {
         console.error('Update medication status error:', error);
@@ -231,7 +240,75 @@ async function apiSearchMyMedications(searchTerm) {
         return { success: false, data: { error: 'Network error. Please try again.' } };
     }
 }
+//====Modals====//
+// ==================== MODAL FUNCTIONS ====================
+function closeModal() {
+    const medicineModal = document.getElementById('medicineModal');
+    const medicineForm = document.getElementById('medicineForm');
+    
+    if (medicineModal) {
+        medicineModal.style.display = 'none';
+    }
+    if (medicineForm) {
+        medicineForm.reset();
+    }
+    editingMedicineId = null;
+}
 
+function openModal() {
+    const medicineModal = document.getElementById('medicineModal');
+    if (!medicineModal) {
+        console.log('❌ Medicine modal not found on this page');
+        return;
+    }
+    
+    medicineModal.style.display = 'flex';
+    editingMedicineId = null;
+    
+    // Set default values
+    const today = new Date();
+    const formattedDate = today.toISOString().split('T')[0];
+    
+    // Set start date to today
+    const startDateInput = document.getElementById('medicineStartDate');
+    if (startDateInput) startDateInput.value = formattedDate;
+    
+    // Set end date to 1 week from today
+    const oneWeekLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const formattedEndDate = oneWeekLater.toISOString().split('T')[0];
+    const endDateInput = document.getElementById('medicineEndDate');
+    if (endDateInput) endDateInput.value = formattedEndDate;
+    
+    // Set default time to next hour
+    const nextHour = new Date(today.getTime() + 60 * 60 * 1000);
+    const formattedTime = nextHour.toTimeString().slice(0, 5);
+    const timeInput = document.getElementById('medicineTime');
+    if (timeInput) timeInput.value = formattedTime;
+    
+    // Set frequency to daily
+    const frequencySelect = document.getElementById('medicineFrequency');
+    if (frequencySelect) frequencySelect.value = 'daily';
+    
+    // Update modal title and button
+    const modalTitle = document.getElementById('modalTitle');
+    const submitBtn = document.getElementById('submitBtn');
+    if (modalTitle) modalTitle.textContent = 'Add New Medicine';
+    if (submitBtn) submitBtn.textContent = 'Add Medicine';
+    
+    console.log('✅ Medicine modal opened with default values');
+}
+
+function showNotification(message, type) {
+    const notification = document.getElementById('notification');
+    if (!notification) return;
+
+    notification.textContent = message;
+    notification.className = `notification ${type} show`;
+
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 3000);
+}
 // ==================== AUTH FORMS ====================
 function initAuthForms() {
     console.log("initAuthForms called - setting up form handlers");
@@ -397,59 +474,83 @@ let editingMedicineId = null;
 
 // DOM Elements - declare them but don't assign yet
 let medicineList, emptyState, addMedicineBtn, addMedicineEmptyBtn, medicineModal, closeModalBtn, cancelBtn, medicineForm, notification;
-
 function initMedicineTracker() {
-    // Get DOM elements for medicine tracker
+    console.log("🏥 MEDICINE TRACKER INITIALIZED");
+    
+    // Get DOM elements - ASSIGN TO GLOBAL VARIABLES (no const)
     medicineList = document.getElementById('medicineList');
-    emptyState = document.getElementById('emptyState');
-    addMedicineBtn = document.getElementById('addMedicineBtn');
-    addMedicineEmptyBtn = document.getElementById('addMedicineEmptyBtn');
+    emptyState = document.getElementById('emptyState'); // ADD THIS LINE
     medicineModal = document.getElementById('medicineModal');
+    addMedicineBtn = document.getElementById('addMedicineBtn');
+    addMedicineEmptyBtn = document.getElementById('addMedicineEmptyBtn'); // ADD THIS LINE
     closeModalBtn = document.getElementById('closeModalBtn');
     cancelBtn = document.getElementById('cancelBtn');
     medicineForm = document.getElementById('medicineForm');
-    notification = document.getElementById('notification');
+    notification = document.getElementById('notification'); // ADD THIS LINE
 
-    // Check if we're on a page that has medicine tracker elements
-    if (!medicineList) {
-        console.log('Medicine tracker not on this page');
-        return;
-    }
+    console.log("🔍 Modal elements found:", { 
+        medicineModal: !!medicineModal, 
+        medicineForm: !!medicineForm,
+        addMedicineBtn: !!addMedicineBtn,
+        medicineList: !!medicineList, // ADD THIS
+        emptyState: !!emptyState // ADD THIS
+    });
 
-    loadMedications();
-
-    // Event Listeners
-    if (addMedicineBtn) addMedicineBtn.addEventListener('click', openModal);
-    if (addMedicineEmptyBtn) addMedicineEmptyBtn.addEventListener('click', openModal);
-    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
-    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-    if (medicineForm) medicineForm.addEventListener('submit', handleFormSubmit);
-
-    // Close modal when clicking outside
+    // Set up modal event listeners if modal exists
     if (medicineModal) {
+        console.log("✅ Setting up modal event listeners");
+        
+        if (addMedicineBtn) {
+            addMedicineBtn.addEventListener('click', openModal);
+        }
+        
+        // ADD THIS: Also set up the empty state add button
+        if (addMedicineEmptyBtn) {
+            addMedicineEmptyBtn.addEventListener('click', openModal);
+        }
+        
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', closeModal);
+        }
+        
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', closeModal);
+        }
+        
+        if (medicineForm) {
+            medicineForm.addEventListener('submit', handleFormSubmit);
+        }
+        
+        // Close modal when clicking outside
         medicineModal.addEventListener('click', function (e) {
             if (e.target === medicineModal) {
                 closeModal();
             }
         });
+    } else {
+        console.log('ℹ️ No medicine modal found on this page');
+    }
+
+    // Load medications if medicine list exists
+    if (medicineList) {
+        console.log("✅ Loading medications for schedule page");
+        loadMedications();
     }
 }
 let loadMedicationsCallCount = 0;
-
 async function loadMedications() {
     loadMedicationsCallCount++;
     console.log(`🔢 loadMedications called #${loadMedicationsCallCount} times`);
     
     let result;
     
-    // More specific condition for today's schedule page
-    if (window.location.pathname.includes('medicine_schedule.html') || 
-        (window.location.pathname.includes('medicine_schedule') && window.location.search.includes('action=add'))) {
-        console.log('📋 Loading today medications for schedule page...');
+    // SPECIFIC check for today's schedule page
+    if (window.location.pathname.includes('medicine_schedule.html')) {
+        console.log('📋 Loading TODAY medications for schedule page...');
         result = await apiGetTodayMedications();
     } else {
         // Load all medications (for other pages)
-        console.log('📋 Loading all medications...');
+        console.log('📋 Loading ALL medications...');
         result = await apiGetMedications();
     }
     
@@ -457,22 +558,7 @@ async function loadMedications() {
     
     if (result.success) {
         medicines = result.data.medications || [];
-        console.log(`✅ Loaded ${medicines.length} medications`);
-        
-        // Check for duplicates in the data itself
-        const uniqueIds = new Set();
-        const duplicates = [];
-        
-        medicines.forEach(med => {
-            if (uniqueIds.has(med.id)) {
-                duplicates.push(med.id);
-            }
-            uniqueIds.add(med.id);
-        });
-        
-        if (duplicates.length > 0) {
-            console.log(`🚨 DUPLICATES FOUND IN API DATA: ${duplicates.join(', ')}`);
-        }
+        console.log(`✅ Loaded ${medicines.length} medications for today`);
         
         renderMedicineList();
     } else {
@@ -482,7 +568,6 @@ async function loadMedications() {
         renderMedicineList();
     }
 }
-
 function renderMedicineList() {
     // Check if medicineList exists
     if (!medicineList) return;
@@ -599,50 +684,28 @@ async function handleFormSubmit(e) {
         // Get form values
         const name = document.getElementById('medicineName').value.trim();
         const dosage = document.getElementById('medicineDosage').value.trim();
-        const timeValue = document.getElementById('medicineTime').value; // This is just "HH:MM"
+        const timeValue = document.getElementById('medicineTime').value; // HH:MM format
+        const startDate = document.getElementById('medicineStartDate').value; // YYYY-MM-DD
+        const endDate = document.getElementById('medicineEndDate').value; // YYYY-MM-DD (optional)
+        const frequency = document.getElementById('medicineFrequency').value;
         const notes = document.getElementById('medicineNotes').value.trim();
-        const prescriberSelect = document.getElementById('medicinePrescriber');
-        const prescriberId = prescriberSelect ? prescriberSelect.value : '';
         
-        console.log("📝 Form data:", { name, dosage, timeValue, notes, prescriberId });
+        console.log("📝 Form data:", { name, dosage, timeValue, startDate, endDate, frequency, notes });
         
         // Validation
-        if (!name || !dosage || !timeValue) {
+        if (!name || !dosage || !timeValue || !startDate) {
             showNotification('Please fill in all required fields', 'error');
             return;
-        }
-        
-        // Create full datetime string (today's date + selected time)
-        const today = new Date();
-        const [hours, minutes] = timeValue.split(':');
-        today.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        
-        const scheduleTime = today.toISOString().slice(0, 19).replace('T', ' ');
-        console.log("🕒 Full datetime being sent:", scheduleTime);
-        
-        let finalNotes = notes;
-        
-        // Add prescriber info to notes if selected
-        if (prescriberId) {
-            try {
-                const doctors = await getDoctorsList();
-                const selectedDoctor = doctors.find(d => d.id == prescriberId);
-                if (selectedDoctor) {
-                    const prescriberInfo = `Prescribed by: ${selectedDoctor.name} (${selectedDoctor.specialty})`;
-                    finalNotes = notes ? `${notes}\n${prescriberInfo}` : prescriberInfo;
-                    console.log("📋 Added prescriber to notes:", prescriberInfo);
-                }
-            } catch (error) {
-                console.error('Error getting doctor info:', error);
-                // Continue without prescriber info
-            }
         }
         
         const medicationData = {
             name,
             dosage,
-            time: scheduleTime, // Send full datetime
-            notes: finalNotes
+            time: timeValue, // Just send time in HH:MM format
+            start_date: startDate,
+            end_date: endDate || startDate, // If no end date, use start date (one-time)
+            frequency: frequency,
+            notes: notes
         };
         
         console.log("🚀 Sending to API:", medicationData);
@@ -651,22 +714,13 @@ async function handleFormSubmit(e) {
         
         if (result.success) {
             console.log("✅ Medication added successfully");
-            
-            // Store prescriber separately if needed
-            if (prescriberId) {
-                const doctors = await getDoctorsList();
-                const selectedDoctor = doctors.find(d => d.id == prescriberId);
-                if (selectedDoctor) {
-                    saveMedicationPrescriber(result.medicine_id, selectedDoctor);
-                }
-            }
-            
-            showNotification('Medication added successfully!', 'success');
+            showNotification(`Medication added with ${result.data.reminders_created} reminders!`, 'success');
             e.target.reset();
+            closeModal();
             loadMedications();
         } else {
             console.error('❌ API returned error:', result);
-            showNotification(result.error || 'Failed to add medication', 'error');
+            showNotification(result.data.error || 'Failed to add medication', 'error');
         }
         
     } catch (error) {
@@ -674,12 +728,7 @@ async function handleFormSubmit(e) {
         showNotification('Error adding medication: ' + error.message, 'error');
     }
 }
-// Get prescriber info from localStorage
-function getMedicationPrescriber(medicineId) {
-    const key = `meditrack-prescriber-${medicineId}`;
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : null;
-}
+
 async function markMedicineAsTaken(id) {
     const result = await apiUpdateMedicationStatus(id, 'taken');
     
@@ -704,6 +753,7 @@ async function deleteMedicine(id) {
     }
 }
 
+
 function openEditModal(id) {
     const medicine = medicines.find(m => m.id === id);
     if (!medicine) return;
@@ -727,29 +777,6 @@ function openEditModal(id) {
     document.getElementById('notes').value = medicine.notes;
 }
 
-function openModal() {
-    if (medicineModal) medicineModal.style.display = 'flex';
-    editingMedicineId = null;
-    document.getElementById('modalTitle').textContent = 'Add New Medicine';
-    document.getElementById('submitBtn').textContent = 'Add Medicine';
-}
-
-function closeModal() {
-    if (medicineModal) medicineModal.style.display = 'none';
-    if (medicineForm) medicineForm.reset();
-    editingMedicineId = null;
-}
-
-function showNotification(message, type) {
-    if (!notification) return;
-
-    notification.textContent = message;
-    notification.className = `notification ${type} show`;
-
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 3000);
-}
 
 // ==================== MY MEDICATIONS PAGE FUNCTIONALITY ====================//
 function initMyMedicationsPage() {
@@ -1309,37 +1336,15 @@ async function markMedicationAsTaken(medicineId, button) {
             
             // Update dashboard stats
             await updateDashboardStats();
-            showToast('Medication marked as taken!');
+            showNotification('Medication marked as taken!', 'success');
         } else {
-            console.error('❌ API returned error:', result.error);
-            showToast('Error updating medication status', 'error');
+            console.error('❌ API returned error:', result.data.error);
+            showNotification('Error: ' + (result.data.error || 'Failed to update status'), 'error');
         }
     } catch (error) {
         console.error('💥 Error marking medication as taken:', error);
-        showToast('Error updating medication status', 'error');
+        showNotification('Error updating medication status', 'error');
     }
-}
-
-function attachMedicationActionListeners() {
-    const markTakenButtons = document.querySelectorAll('.status-btn.pending');
-    console.log(`🎯 Found ${markTakenButtons.length} pending buttons to attach listeners to`);
-    
-    markTakenButtons.forEach(button => {
-        // Remove existing listeners to prevent duplicates
-        button.replaceWith(button.cloneNode(true));
-    });
-    
-    // Re-select after cloning
-    const newButtons = document.querySelectorAll('.status-btn.pending');
-    newButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            const medicineId = this.getAttribute('data-id');
-            console.log('🖱️ Mark as taken clicked for medicine:', medicineId);
-            if (medicineId) {
-                markMedicationAsTaken(medicineId, this);
-            }
-        });
-    });
 }
 
 // ==================== ADMIN DASHBOARD ====================

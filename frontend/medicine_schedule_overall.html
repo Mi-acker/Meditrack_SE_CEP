@@ -73,133 +73,178 @@
         </footer>
     </div>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        let currentDate = new Date();
-        const calendarElement = document.getElementById('calendar');
-        const currentMonthElement = document.getElementById('currentMonth');
-        const prevMonthButton = document.getElementById('prevMonth');
-        const nextMonthButton = document.getElementById('nextMonth');
-        const printButton = document.getElementById('printSchedule');
-        
-        // Get user data from localStorage
-        const userData = JSON.parse(localStorage.getItem('user') || '{}');
-        const userName = userData.name || 'User';
-        const userAvatar = document.querySelector('.medschedule-overall-user-avatar');
-        
-        // Update user info in header
-        if (userAvatar) {
-            const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase();
-            userAvatar.textContent = initials;
+document.addEventListener('DOMContentLoaded', function() {
+    let currentDate = new Date();
+    const calendarElement = document.getElementById('calendar');
+    const currentMonthElement = document.getElementById('currentMonth');
+    const prevMonthButton = document.getElementById('prevMonth');
+    const nextMonthButton = document.getElementById('nextMonth');
+    const printButton = document.getElementById('printSchedule');
+    
+    // Get user data from localStorage
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    const userName = userData.name || 'User';
+    const userAvatar = document.querySelector('.medschedule-overall-user-avatar');
+    
+    // Update user info in header
+    if (userAvatar) {
+        const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase();
+        userAvatar.textContent = initials;
+    }
+    
+    document.querySelector('.medschedule-overall-user-info h3').textContent = userName;
+    
+    async function loadMonthlyReminders() {
+        try {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const response = await fetch(`http://localhost:5000/api/medications/reminders`, {
+                method: 'GET',
+                headers: { 
+                    'Authorization': `Bearer ${user.user_id}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch reminders');
+            }
+            
+            const data = await response.json();
+            return data.reminders || [];
+        } catch (error) {
+            console.error('Error loading monthly reminders:', error);
+            return [];
         }
+    }
+
+    async function renderCalendar(date) {
+        // Clear existing calendar days
+        const existingDays = document.querySelectorAll('.medschedule-overall-day');
+        existingDays.forEach(day => day.remove());
         
-        document.querySelector('.medschedule-overall-user-info h3').textContent = userName;
+        // Update month display
+        currentMonthElement.textContent = date.toLocaleString('default', { month: 'long', year: 'numeric' });
         
-        async function loadMonthlyMedications(year, month) {
-            try {
-                const user = JSON.parse(localStorage.getItem('user') || '{}');
-                const response = await fetch(`http://localhost:5000/api/medications/monthly?year=${year}&month=${month}`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${user.user_id}` }
+        // Update user info
+        document.querySelector('.medschedule-overall-user-info p').textContent = 
+            `Medication schedule for ${date.toLocaleString('default', { month: 'long', year: 'numeric' })}`;
+        
+        // Get calendar dates
+        const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+        const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const startingDay = firstDay.getDay();
+        
+        // Load ALL reminders
+        const allReminders = await loadMonthlyReminders();
+        
+        // Group reminders by day for the current month
+        const remindersByDay = {};
+        
+        allReminders.forEach(reminder => {
+            const reminderDate = new Date(reminder.reminder_time);
+            const reminderDay = reminderDate.getDate();
+            const reminderMonth = reminderDate.getMonth();
+            const reminderYear = reminderDate.getFullYear();
+            
+            // Only include reminders for the current calendar month
+            if (reminderMonth === date.getMonth() && reminderYear === date.getFullYear()) {
+                if (!remindersByDay[reminderDay]) {
+                    remindersByDay[reminderDay] = [];
+                }
+                
+                // Determine time of day for color coding
+                const hour = reminderDate.getHours();
+                let timeOfDay = 'morning';
+                if (hour >= 12 && hour < 18) timeOfDay = 'afternoon';
+                else if (hour >= 18 && hour < 22) timeOfDay = 'evening';
+                else if (hour >= 22 || hour < 6) timeOfDay = 'night';
+                
+                // Determine icon
+                let icon = 'fa-capsules';
+                const nameLower = reminder.name.toLowerCase();
+                if (nameLower.includes('vitamin')) icon = 'fa-apple-alt';
+                else if (nameLower.includes('aspirin') || nameLower.includes('pain')) icon = 'fa-pills';
+                else if (nameLower.includes('blood') || nameLower.includes('pressure')) icon = 'fa-heartbeat';
+                else if (nameLower.includes('allergy')) icon = 'fa-wind';
+                
+                remindersByDay[reminderDay].push({
+                    name: reminder.name,
+                    dosage: reminder.dosage,
+                    time: timeOfDay,
+                    icon: icon,
+                    reminder_time: reminder.reminder_time,
+                    status: reminder.status
                 });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to fetch medications');
-                }
-                
-                const data = await response.json();
-                return data.medications || {};
-            } catch (error) {
-                console.error('Error loading monthly medications:', error);
-                return {};
             }
+        });
+        
+        // Add empty cells for days before the first day of the month
+        for (let i = 0; i < startingDay; i++) {
+            const emptyDay = document.createElement('div');
+            emptyDay.className = 'medschedule-overall-day';
+            emptyDay.innerHTML = '<div class="medschedule-overall-empty"></div>';
+            calendarElement.appendChild(emptyDay);
         }
         
-        async function renderCalendar(date) {
-            // Clear existing calendar days (keeping headers)
-            const existingDays = document.querySelectorAll('.medschedule-overall-day');
-            existingDays.forEach(day => day.remove());
+        // Add days of the month with reminders
+        const today = new Date();
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayElement = document.createElement('div');
+            dayElement.className = 'medschedule-overall-day';
             
-            // Update month display
-            currentMonthElement.textContent = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-            
-            // Update user info with current month
-            document.querySelector('.medschedule-overall-user-info p').textContent = 
-                `Medication schedule for ${date.toLocaleString('default', { month: 'long', year: 'numeric' })}`;
-            
-            // Get first day of month and number of days
-            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-            const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-            const daysInMonth = lastDay.getDate();
-            const startingDay = firstDay.getDay();
-            
-            // Load medications for this month
-            const medicationData = await loadMonthlyMedications(date.getFullYear(), date.getMonth() + 1);
-            
-            // Add empty cells for days before the first day of the month
-            for (let i = 0; i < startingDay; i++) {
-                const emptyDay = document.createElement('div');
-                emptyDay.className = 'medschedule-overall-day';
-                emptyDay.innerHTML = '<div class="medschedule-overall-empty">No medications</div>';
-                calendarElement.appendChild(emptyDay);
+            // Check if this is today
+            if (date.getMonth() === today.getMonth() && 
+                date.getFullYear() === today.getFullYear() && 
+                day === today.getDate()) {
+                dayElement.classList.add('medschedule-overall-today');
             }
             
-            // Add days of the month
-            const today = new Date();
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dayElement = document.createElement('div');
-                dayElement.className = 'medschedule-overall-day';
-                
-                // Check if this is today
-                if (date.getMonth() === today.getMonth() && 
-                    date.getFullYear() === today.getFullYear() && 
-                    day === today.getDate()) {
-                    dayElement.classList.add('medschedule-overall-today');
-                }
-                
-                // Add date
-                const dateElement = document.createElement('div');
-                dateElement.className = 'medschedule-overall-date';
-                dateElement.textContent = day;
-                dayElement.appendChild(dateElement);
-                
-                // Add medications for this day if any
-                if (medicationData[day]) {
-                    medicationData[day].forEach(med => {
-                        const medElement = document.createElement('div');
-                        medElement.className = `medschedule-overall-medication medschedule-overall-${med.time}`;
-                        medElement.innerHTML = `<i class="fas ${med.icon}"></i> ${med.name} (${med.dosage})`;
-                        dayElement.appendChild(medElement);
-                    });
-                } else {
-                    const emptyElement = document.createElement('div');
-                    emptyElement.className = 'medschedule-overall-empty';
-                    emptyElement.textContent = 'No medications';
-                    dayElement.appendChild(emptyElement);
-                }
-                
-                calendarElement.appendChild(dayElement);
+            // Add date
+            const dateElement = document.createElement('div');
+            dateElement.className = 'medschedule-overall-date';
+            dateElement.textContent = day;
+            dayElement.appendChild(dateElement);
+            
+            // Add reminders for this day if any
+            if (remindersByDay[day] && remindersByDay[day].length > 0) {
+                remindersByDay[day].forEach(reminder => {
+                    const medElement = document.createElement('div');
+                    medElement.className = `medschedule-overall-medication medschedule-overall-${reminder.time}`;
+                    medElement.innerHTML = `<i class="fas ${reminder.icon}"></i> ${reminder.name}`;
+                    dayElement.appendChild(medElement);
+                });
+            } else {
+                const emptyElement = document.createElement('div');
+                emptyElement.className = 'medschedule-overall-empty';
+                emptyElement.textContent = '';
+                dayElement.appendChild(emptyElement);
             }
+            
+            calendarElement.appendChild(dayElement);
         }
-        
-        // Event listeners for month navigation
-        prevMonthButton.addEventListener('click', function() {
-            currentDate.setMonth(currentDate.getMonth() - 1);
-            renderCalendar(currentDate);
-        });
-        
-        nextMonthButton.addEventListener('click', function() {
-            currentDate.setMonth(currentDate.getMonth() + 1);
-            renderCalendar(currentDate);
-        });
-        
-        // Print functionality
-        printButton.addEventListener('click', function() {
-            window.print();
-        });
-        
-        // Initial render
+    }
+    
+    // Event listeners for month navigation
+    prevMonthButton.addEventListener('click', function() {
+        currentDate.setMonth(currentDate.getMonth() - 1);
         renderCalendar(currentDate);
     });
+    
+    nextMonthButton.addEventListener('click', function() {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        renderCalendar(currentDate);
+    });
+    
+    // Print functionality
+    printButton.addEventListener('click', function() {
+        window.print();
+    });
+    
+    // Initial render
+    renderCalendar(currentDate);
+}); // <-- This closes the DOMContentLoaded event listener
 </script>
 <script src="app.js"></script>
 
