@@ -2090,3 +2090,47 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 });
+// SAMPLE DATA (You can replace these with real values)
+const medicinesTaken = 24;
+const medicinesMissed = 6;
+const totalDays = medicinesTaken + medicinesMissed;
+
+// Update text fields
+document.getElementById("medTaken").textContent = medicinesTaken;
+document.getElementById("medMissed").textContent = medicinesMissed;
+
+const rate = ((medicinesTaken / totalDays) * 100).toFixed(1);
+document.getElementById("adherenceRate").textContent = rate + "%";
+
+// Chart drawing
+const canvas = document.getElementById("adherenceChart");
+const ctx = canvas.getContext("2d");
+
+canvas.width = 600;
+canvas.height = 300;
+
+// Bar positions
+const barWidth = 120;
+const spacing = 80;
+const baseLine = 250;
+
+// Scale
+const maxValue = Math.max(medicinesTaken, medicinesMissed);
+const scale = 180 / maxValue;
+
+// Draw bars
+function drawBar(x, height, color, label, value) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, baseLine - height, barWidth, height);
+
+    ctx.font = "16px Arial";
+    ctx.fillStyle = "#1f2937";
+    ctx.fillText(label, x + 20, baseLine + 25);
+    ctx.fillText(value, x + 40, baseLine - height - 10);
+}
+
+drawBar(120, medicinesTaken * scale, "#b5e48c", "Taken", medicinesTaken);
+drawBar(120 + barWidth + spacing, medicinesMissed * scale, "#ffadad", "Missed", medicinesMissed);
+
+
+

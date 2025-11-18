@@ -3260,3 +3260,85 @@ header {
         flex-direction: column;
     }
 }
+.summary_container {
+    max-width: 850px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+/* ---- Header ---- */
+.summary_header {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.summary_title {
+    font-size: 2rem;
+    color: var(--color-primary-dark);
+}
+
+.summary_month {
+    font-size: 1.1rem;
+    color: var(--text-light);
+}
+
+/* ---- Cards ---- */
+.summary_card,
+.summary_chart_card {
+    background: var(--bg-white);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 25px;
+}
+
+.summary_card_title {
+    margin-bottom: 15px;
+    font-size: 1.4rem;
+    color: var(--color-dark-text);
+}
+
+/* ---- Stats ---- */
+.summary_stats {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.summary_stat_item {
+    flex: 1;
+    padding: 15px;
+    border-radius: var(--border-radius);
+    background: var(--color-primary-light);
+    text-align: center;
+    transition: var(--transition);
+}
+
+.summary_stat_item:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat_label {
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+
+.stat_value {
+    margin-top: 5px;
+    font-size: 1.8rem;
+    color: var(--text-dark);
+}
+
+.stat_missed {
+    color: var(--danger);
+}
+
+.stat_rate {
+    color: var(--success);
+}
+
+/* ---- Chart Card ---- */
+.summary_chart_card {
+    padding-bottom: 30px;
+}
