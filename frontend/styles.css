@@ -3338,6 +3338,33 @@ header {
     color: var(--success);
 }
 
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-completed {
+    background-color: #d1edff;
+    color: #0c5460;
+}
+
+.status-taken {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-missed {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
 /* ---- Chart Card ---- */
 .summary_chart_card {
     padding-bottom: 30px;

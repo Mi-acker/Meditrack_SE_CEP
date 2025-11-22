@@ -240,6 +240,34 @@ async function apiSearchMyMedications(searchTerm) {
         return { success: false, data: { error: 'Network error. Please try again.' } };
     }
 }
+// Function to load doctors into the prescriber dropdown
+function loadPrescriberOptions() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const doctors = JSON.parse(localStorage.getItem('doctors') || '[]');
+    const prescriberSelect = document.getElementById('medicinePrescriber');
+    
+    if (prescriberSelect) {
+        // Clear existing options except the first one
+        prescriberSelect.innerHTML = '<option value="">Select a Doctor</option>';
+        
+        // Filter doctors for current user
+        const userDoctors = doctors.filter(doctor => doctor.user_id === user.user_id);
+        
+        if (userDoctors.length === 0) {
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "No doctors added yet - Add doctors first";
+            prescriberSelect.appendChild(option);
+        } else {
+            userDoctors.forEach(doctor => {
+                const option = document.createElement('option');
+                option.value = doctor.id;
+                option.textContent = `${doctor.name} - ${doctor.specialization}`;
+                prescriberSelect.appendChild(option);
+            });
+        }
+    }
+}
 //====Modals====//
 // ==================== MODAL FUNCTIONS ====================
 function closeModal() {
@@ -254,7 +282,6 @@ function closeModal() {
     }
     editingMedicineId = null;
 }
-
 function openModal() {
     const medicineModal = document.getElementById('medicineModal');
     if (!medicineModal) {
@@ -264,6 +291,9 @@ function openModal() {
     
     medicineModal.style.display = 'flex';
     editingMedicineId = null;
+    
+    // Load doctors for the prescriber dropdown
+    loadDoctorsForPrescriber();
     
     // Set default values
     const today = new Date();
@@ -297,7 +327,6 @@ function openModal() {
     
     console.log('✅ Medicine modal opened with default values');
 }
-
 function showNotification(message, type) {
     const notification = document.getElementById('notification');
     if (!notification) return;
@@ -569,13 +598,9 @@ async function loadMedications() {
     }
 }
 function renderMedicineList() {
-    // Check if medicineList exists
     if (!medicineList) return;
-
-    // Clear the list
     medicineList.innerHTML = '';
 
-    // Check if there are medicines
     if (medicines.length === 0) {
         if (emptyState) emptyState.style.display = 'block';
         return;
@@ -583,47 +608,41 @@ function renderMedicineList() {
 
     if (emptyState) emptyState.style.display = 'none';
 
-    // Sort medicines by time
     const sortedMedicines = [...medicines].sort((a, b) => {
-        return a.time.localeCompare(b.time);
+        return (a.time || '').toString().localeCompare((b.time || '').toString());
     });
 
-    // Create medicine items
     sortedMedicines.forEach(medicine => {
         const li = document.createElement('li');
         li.className = 'medicine-item';
 
-        // Map database status to frontend status
-        let statusClass, statusIcon, displayStatus;
-        if (medicine.status === 'Completed' || medicine.status === 'taken') {
-            statusClass = 'status-taken';
-            statusIcon = 'fas fa-check-circle';
-            displayStatus = 'Taken';
-        } else if (medicine.status === 'Pending' || medicine.status === 'upcoming') {
-            statusClass = 'status-upcoming';
-            statusIcon = 'far fa-clock';
-            displayStatus = 'Upcoming';
-        } else {
-            statusClass = 'status-missed';
-            statusIcon = 'fas fa-exclamation-circle';
-            displayStatus = 'Missed';
+        // Normalize status safely
+        const rawStatus = medicine.status ?? '';
+        const status = rawStatus.toString().toLowerCase();
+
+        let statusHtml = '';
+        if (status === 'completed' || status === 'taken') {
+            statusHtml = `<span class="status status-taken"><i class="fas fa-check-circle"></i> Taken</span>`;
+        } else if (status === 'pending' || status === 'upcoming') {
+            statusHtml = `<span class="status status-upcoming"><i class="far fa-clock"></i> Upcoming</span>`;
+        } else if (status === 'missed') {
+            statusHtml = `<span class="status status-missed"><i class="fas fa-times-circle"></i> Missed</span>`;
         }
+        // If status is unknown/empty, statusHtml stays empty (no "undefined" shown)
 
         li.innerHTML = `
             <div class="medicine-info">
                 <div class="medicine-name">
-                    <i class="fas fa-capsules"></i> ${medicine.name}
+                    <i class="fas fa-capsules"></i> ${medicine.name || ''}
                 </div>
                 <div class="medicine-details">
                     <span class="dosage-badge">
-                        <i class="fas fa-prescription-bottle-alt"></i> ${medicine.dosage}
+                        <i class="fas fa-prescription-bottle-alt"></i> ${medicine.dosage || ''}
                     </span>
                     <span class="medicine-time">
-                        <i class="far fa-clock"></i> ${formatTime(medicine.time)}
+                        <i class="far fa-clock"></i> ${formatTime(medicine.time || '')}
                     </span>
-                    <span class="status ${statusClass}">
-                        <i class="${statusIcon}"></i>${displayStatus}
-                    </span>
+                    ${statusHtml}
                 </div>
                 ${medicine.notes ? `<div class="medicine-notes">${medicine.notes}</div>` : ''}
             </div>
@@ -643,7 +662,7 @@ function renderMedicineList() {
         medicineList.appendChild(li);
     });
 
-    // Add event listeners to action buttons
+    // Event listeners remain unchanged
     document.querySelectorAll('.mark-taken-btn').forEach(btn => {
         btn.addEventListener('click', function () {
             const id = parseInt(this.getAttribute('data-id'));
@@ -657,7 +676,7 @@ function renderMedicineList() {
             deleteMedicine(id);
         });
     });
-    
+
     document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', function () {
             const id = parseInt(this.getAttribute('data-id'));
@@ -675,7 +694,36 @@ function formatTime(timeString) {
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
 }
+// Helper functions for managing prescriber data in localStorage
+function saveMedicationPrescriber(medicineId, doctor) {
+    const key = `meditrack-prescriber-${medicineId}`;
+    localStorage.setItem(key, JSON.stringify(doctor));
+    console.log(`💾 Saved prescriber for medicine ${medicineId}:`, doctor);
+}
 
+function getMedicationPrescriber(medicineId) {
+    const key = `meditrack-prescriber-${medicineId}`;
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : null;
+}
+
+function getAllMedicationPrescribers() {
+    const prescribers = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('meditrack-prescriber-')) {
+            const medicineId = key.replace('meditrack-prescriber-', '');
+            prescribers[medicineId] = JSON.parse(localStorage.getItem(key));
+        }
+    }
+    return prescribers;
+}
+
+function deleteMedicationPrescriber(medicineId) {
+    const key = `meditrack-prescriber-${medicineId}`;
+    localStorage.removeItem(key);
+    console.log(`🗑️ Deleted prescriber for medicine ${medicineId}`);
+}
 async function handleFormSubmit(e) {
     e.preventDefault();
     console.log("📋 Medication form submitted");
@@ -688,9 +736,11 @@ async function handleFormSubmit(e) {
         const startDate = document.getElementById('medicineStartDate').value; // YYYY-MM-DD
         const endDate = document.getElementById('medicineEndDate').value; // YYYY-MM-DD (optional)
         const frequency = document.getElementById('medicineFrequency').value;
+        const prescriberId = document.getElementById('medicinePrescriber')?.value || null;
+        const prescriberOptionText = document.getElementById('medicinePrescriber')?.selectedOptions?.[0]?.text || '';
         const notes = document.getElementById('medicineNotes').value.trim();
         
-        console.log("📝 Form data:", { name, dosage, timeValue, startDate, endDate, frequency, notes });
+        console.log("📝 Form data:", { name, dosage, timeValue, startDate, endDate, frequency, notes, prescriberId, prescriberOptionText });
         
         // Validation
         if (!name || !dosage || !timeValue || !startDate) {
@@ -705,6 +755,7 @@ async function handleFormSubmit(e) {
             start_date: startDate,
             end_date: endDate || startDate, // If no end date, use start date (one-time)
             frequency: frequency,
+            prescriber_id: prescriberId || null,
             notes: notes
         };
         
@@ -714,10 +765,41 @@ async function handleFormSubmit(e) {
         
         if (result.success) {
             console.log("✅ Medication added successfully");
+            
+            // Save prescriber info to localStorage
+            if (prescriberId && prescriberOptionText) {
+                const newMedicineId = result.data?.medicine_id;
+                if (newMedicineId) {
+                    // Parse the prescriber info from the dropdown text
+                    let prescriberName = prescriberOptionText;
+                    let prescriberSpecialty = '';
+                    
+                    if (prescriberOptionText.includes(' - ')) {
+                        const parts = prescriberOptionText.split(' - ');
+                        prescriberName = parts[0].trim();
+                        prescriberSpecialty = parts[1]?.trim() || '';
+                    }
+                    
+                    // Save to localStorage
+                    saveMedicationPrescriber(newMedicineId, {
+                        id: prescriberId,
+                        name: prescriberName,
+                        specialty: prescriberSpecialty
+                    });
+                    
+                    console.log('💾 Saved prescriber to localStorage for medicine', newMedicineId);
+                }
+            }
+            
             showNotification(`Medication added with ${result.data.reminders_created} reminders!`, 'success');
             e.target.reset();
             closeModal();
             loadMedications();
+            
+            // If we're on the My Medications page, reload that too
+            if (window.location.pathname.includes('my_medications.html')) {
+                loadMyMedications();
+            }
         } else {
             console.error('❌ API returned error:', result);
             showNotification(result.data.error || 'Failed to add medication', 'error');
@@ -882,7 +964,7 @@ function renderMyMedications(medications) {
     }
 
     medications.forEach(med => {
-        // Get prescriber info ONLY for My Medications page
+        // Get prescriber info from localStorage
         const prescriber = getMedicationPrescriber(med.id);
         
         const card = document.createElement('div');
@@ -896,27 +978,19 @@ function renderMyMedications(medications) {
             <div class="medication-details">
                 <div class="detail-item">
                     <span class="detail-label">Frequency:</span>
-                    <span class="detail-value">${med.frequency}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Purpose:</span>
-                    <span class="detail-value">${med.purpose}</span>
+                    <span class="detail-value">${med.frequency || 'Once daily'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Prescriber:</span>
-                    <span class="detail-value">${prescriber ? `${prescriber.name} (${prescriber.specialty})` : 'Not specified'}</span>
+                    <span class="detail-value">${prescriber ? `${prescriber.name}${prescriber.specialty ? ` - ${prescriber.specialty}` : ''}` : 'Not specified'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Start Date:</span>
-                    <span class="detail-value">${med.startDate}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Refills:</span>
-                    <span class="detail-value">${med.refills} remaining</span>
+                    <span class="detail-value">${med.startDate || 'N/A'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Status:</span>
-                    <span class="detail-value status-badge status-${med.status.toLowerCase()}">${med.status}</span>
+                    <span class="detail-value status-badge status-${(med.status || 'pending').toLowerCase()}">${med.status || 'Pending'}</span>
                 </div>
                 ${med.notes ? `
                 <div class="detail-item">
@@ -939,6 +1013,7 @@ function renderMyMedications(medications) {
 
     attachMedicationActionListeners();
 }
+
 function setupSearchFunctionality() {
     const searchInput = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
@@ -997,9 +1072,12 @@ async function deleteMedication(medicineId) {
     }
 
     try {
-        const result = await apiDeleteMedication(medicineId); // This should now work
+        const result = await apiDeleteMedication(medicineId);
         
         if (result.success) {
+            // Also delete the prescriber data from localStorage
+            deleteMedicationPrescriber(medicineId);
+            
             showNotification('Medication deleted successfully!', 'success');
             loadMyMedications(); // Reload the list
         } else {
