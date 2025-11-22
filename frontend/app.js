@@ -2114,7 +2114,7 @@ async function loadDoctors() {
 }
 
 // ==================== MAIN INITIALIZATION ====================
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function() {
     console.log("=== DEBUG: Page loaded ===");
     console.log("Current page:", window.location.pathname);
     
@@ -2132,6 +2132,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (window.location.pathname.includes("dashboard.html")) {
         initDashboard().then(() => {
             console.log("Dashboard initialized");
+           
+
             setupNavigation();
             setupEventListeners();
         }
@@ -2194,6 +2196,90 @@ document.addEventListener('DOMContentLoaded', function () {
             window.location.href = 'my_medications.html';
         });
     }
+    // --- Doctor rendering code START ---
+    function loadDoctors() {
+        const doctorsList = document.getElementById('doctors-list');
+        if (!doctorsList) return; // Only run on dashboard
+
+        fetch('/api/doctors', { credentials: 'include' })
+            .then(res => res.json())
+            .then(data => {
+                doctorsList.innerHTML = '';
+                if (data.success && data.doctors && data.doctors.length > 0) {
+                    data.doctors.forEach(doctor => {
+                        const item = document.createElement('div');
+                        item.className = 'appointment-item';
+                        item.innerHTML = `
+                            <div class="appointment-icon"></div>
+                            <div class="appointment-details">
+                                <h5>${doctor.name}</h5>
+                                <p>${doctor.specialty || ''}</p>
+                                <span class="appointment-location">${doctor.phone || ''}</span>
+                            </div>
+                        `;
+                        doctorsList.appendChild(item);
+                    });
+                } else {
+                    doctorsList.innerHTML = '<div>No doctors found.</div>';
+                }
+            })
+            .catch(() => {
+                doctorsList.innerHTML = '<div>Error loading doctors.</div>';
+            });
+    }
+
+    loadDoctors();
+
+    // --- Dashboard Stats ---
+    function loadDashboardStats() {
+        fetch('/api/dashboard-stats', { credentials: 'include' })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) return;
+
+                // Update Active Medications
+                const activeMedElem = document.querySelector('.stat-card.purple .stat-content');
+                if (activeMedElem) {
+                    activeMedElem.innerHTML = `
+                        <div class="stat-title">ACTIVE MEDICATIONS</div>
+                        <div class="stat-value">${data.active_medications}</div>
+                        <div class="stat-change">+1 from last week</div>
+                    `;
+                }
+
+                // Update Upcoming Doses
+                const upcomingDoseElem = document.querySelector('.stat-card.pink .stat-content');
+                if (upcomingDoseElem) {
+                    upcomingDoseElem.innerHTML = `
+                        <div class="stat-title">UPCOMING DOSES TODAY</div>
+                        <div class="stat-value">${data.upcoming_doses}</div>
+                        <div class="stat-change">Next in 2 hours</div>
+                    `;
+                }
+
+                // Update Adherence Rate
+                const adherenceElem = document.querySelector('.stat-card.cream .stat-content');
+                if (adherenceElem) {
+                    adherenceElem.innerHTML = `
+                        <div class="stat-title">ADHERENCE RATE</div>
+                        <div class="stat-value">${data.adherence_rate}%</div>
+                        <div class="stat-change">+3% this week</div>
+                    `;
+                }
+
+                // Update Next Dose
+                const nextDoseElem = document.querySelectorAll('.stat-card.purple .stat-content')[1];
+                if (nextDoseElem) {
+                    nextDoseElem.innerHTML = `
+                        <div class="stat-title">NEXT DOSE</div>
+                        <div class="stat-value">${data.next_dose_time !== "None" ? data.next_dose_time : "None"}</div>
+                        <div class="stat-change">${data.next_dose_name}</div>
+                    `;
+                }
+            });
+    }
+
+    loadDashboardStats();
 });
 // SAMPLE DATA (You can replace these with real values)
 const medicinesTaken = 24;

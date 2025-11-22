@@ -7,9 +7,9 @@ from datetime import datetime, timedelta
 import os
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
-app.secret_key = 'a_very_long_and_random_string_for_meditrack_2025'  # Change this to a random secret key
+app.secret_key = 'a_very_long_and_random_key_for_meditrack_2025_574F9B2C'  # Change this to a random secret key
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = True  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False # Set to True in production with HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 CORS(app, 
      resources={
@@ -1556,6 +1556,61 @@ def admin_reports_summary():
         cursor.close()
         connection.close()
 
+@app.route('/api/dashboard-stats', methods=['GET'])
+def dashboard_stats():
+    user_id = get_authenticated_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+
+    import mysql.connector
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Active medications
+    cursor.execute("SELECT COUNT(*) AS count FROM medications WHERE user_id=%s AND is_active=1", (user_id,))
+    active_medications = cursor.fetchone()['count']
+
+    # Upcoming doses today
+    cursor.execute("""
+        SELECT COUNT(*) AS count FROM reminders 
+        WHERE user_id=%s AND DATE(reminder_time)=CURDATE() AND status='pending'
+    """, (user_id,))
+    upcoming_doses = cursor.fetchone()['count']
+
+    # Next dose
+    cursor.execute("""
+        SELECT m.name, r.reminder_time FROM reminders r
+        JOIN medications m ON r.medication_id = m.id
+        WHERE r.user_id=%s AND r.status='pending' AND r.reminder_time > NOW()
+        ORDER BY r.reminder_time ASC LIMIT 1
+    """, (user_id,))
+    next_dose_row = cursor.fetchone()
+    next_dose = {
+        'name': next_dose_row['name'] if next_dose_row else 'None',
+        'time': str(next_dose_row['reminder_time']) if next_dose_row else None
+    }
+
+    # Adherence rate (example: % of taken doses this week)
+    cursor.execute("""
+        SELECT 
+            SUM(CASE WHEN status='taken' THEN 1 ELSE 0 END) AS taken,
+            COUNT(*) AS total
+        FROM reminders
+        WHERE user_id=%s AND YEARWEEK(reminder_time, 1) = YEARWEEK(CURDATE(), 1)
+    """, (user_id,))
+    row = cursor.fetchone()
+    adherence_rate = int((row['taken'] / row['total']) * 100) if row['total'] else 0
+
+    cursor.close()
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'active_medications': active_medications,
+        'upcoming_doses': upcoming_doses,
+        'adherence_rate': adherence_rate,
+        'next_dose': next_dose
+    })
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
 

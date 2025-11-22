@@ -212,6 +212,38 @@
         console.log('✅ Medicine Schedule page initialized');
     });
 </script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Dynamic Weekly Progress Dots ---
+    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const todayIdx = new Date().getDay(); // 0=Sunday, 6=Saturday
+
+    // Map JS getDay() to your dots order (Mon-Sun)
+    // Your dots: 0=M, 1=T, 2=W, 3=T, 4=F, 5=S, 6=S
+    // JS: 0=Sun, 1=Mon, ..., 6=Sat
+    // So, for your order: Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6, Sun=0
+    const dotOrder = [1, 2, 3, 4, 5, 6, 0];
+
+    const progressDots = document.querySelector('.progress-dots');
+    if (progressDots) {
+        progressDots.innerHTML = ''; // Clear existing dots
+
+        dotOrder.forEach((dayIdx, i) => {
+            const dot = document.createElement('div');
+            dot.className = 'progress-dot';
+            dot.textContent = days[i];
+
+            if (dayIdx === todayIdx) {
+                dot.classList.add('active');
+            }
+            // If you want only the active day highlighted (no completed dots for new medicine)
+            // Do not add 'completed' class to any dot
+
+            progressDots.appendChild(dot);
+        });
+    }
+});
+</script>
 <script src="app.js"></script>
 </body>
 </html>
