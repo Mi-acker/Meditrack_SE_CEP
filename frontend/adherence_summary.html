@@ -5,30 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Adherence Summary</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
 <body>
-
     <div class="summary_container">
         <header class="summary_header">
-            <h1 class="summary_title">Monthly Adherence Summary</h1>
+            <h1 class="summary_title">
+                <i class="fas fa-chart-line"></i> Monthly Adherence Summary
+            </h1>
             <p class="summary_month" id="summaryMonth">January 2025</p>
         </header>
 
         <section class="summary_section">
             <div class="summary_card">
-                <h2 class="summary_card_title">Medicine History</h2>
-
+                <h2 class="summary_card_title">
+                    <i class="fas fa-pills"></i> Medicine History
+                </h2>
                 <div class="summary_stats">
                     <div class="summary_stat_item">
                         <p class="stat_label">Medicines Taken</p>
                         <p class="stat_value" id="medTaken">0</p>
                     </div>
-
                     <div class="summary_stat_item">
                         <p class="stat_label">Medicines Missed</p>
                         <p class="stat_value stat_missed" id="medMissed">0</p>
                     </div>
-
                     <div class="summary_stat_item">
                         <p class="stat_label">Adherence Rate</p>
                         <p class="stat_value stat_rate" id="adherenceRate">0%</p>
@@ -37,7 +38,9 @@
             </div>
 
             <div class="summary_chart_card">
-                <h2 class="summary_card_title">Monthly Adherence Chart</h2>
+                <h2 class="summary_card_title">
+                    <i class="fas fa-chart-bar"></i> Monthly Adherence Chart
+                </h2>
                 <canvas id="adherenceChart"></canvas>
             </div>
         </section>

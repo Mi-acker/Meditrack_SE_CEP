@@ -3369,3 +3369,210 @@ header {
 .summary_chart_card {
     padding-bottom: 30px;
 }
+/* Adherence Summary Styles - Pink/Purple Pastel Theme */
+.summary_container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fffaf5; /* Light cream background */
+    min-height: 100vh;
+}
+
+.summary_header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 30px;
+    background: linear-gradient(135deg, #ffd6e7, #e2d1f9); /* Pink to purple gradient */
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(255, 182, 193, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.summary_title {
+    color: #8b5f8d; /* Deep purple-pink */
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+    font-weight: 700;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.summary_title i {
+    color: #d8a7ca; /* Soft pink-purple */
+    margin-right: 15px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.summary_month {
+    color: #a87fa8; /* Medium purple */
+    font-size: 1.3rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 6px 16px;
+    border-radius: 20px;
+    display: inline-block;
+    backdrop-filter: blur(10px);
+}
+
+.summary_section {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+.summary_card {
+    background: linear-gradient(145deg, #ffe5f1, #f5e6ff); /* Light pink to light purple gradient */
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(255, 182, 193, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+}
+
+.summary_chart_card {
+    background: linear-gradient(145deg, #f0e6ff, #ffe6f5); /* Light purple to light pink gradient */
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(255, 182, 193, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+}
+
+.summary_card_title {
+    color: #8b5f8d; /* Deep purple-pink */
+    font-size: 1.3rem;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+}
+
+.summary_card_title i {
+    color: #d8a7ca; /* Soft pink-purple */
+    background: rgba(255, 255, 255, 0.8);
+    padding: 8px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    font-size: 0.9rem;
+}
+
+.summary_stats {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.summary_stat_item {
+    text-align: center;
+    padding: 25px 15px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 240, 245, 0.9));
+    border-radius: 16px;
+    border-left: 5px solid #d8a7ca; /* Soft pink-purple accent */
+    box-shadow: 0 4px 15px rgba(255, 182, 193, 0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.summary_stat_item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(255, 182, 193, 0.4);
+}
+
+.stat_label {
+    color: #8b5f8d; /* Deep purple-pink */
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat_value {
+    color: #8b5f8d; /* Deep purple-pink */
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin: 0;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.stat_missed {
+    color: #e75480; /* Soft pink-red for missed */
+    background: linear-gradient(45deg, #ffebf0, #fff0f5);
+    border-left: 5px solid #e75480;
+}
+
+.stat_rate {
+    color: #9f78c8; /* Soft purple for rate */
+    background: linear-gradient(45deg, #f5f0ff, #faf5ff);
+    border-left: 6px solid #9f78c8;
+}
+
+#adherenceChart {
+    width: 100%;
+    height: 280px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(5px);
+}
+/* Chart text sizes */
+.chart-text {
+    font-size: 14px;
+}
+/* Chart bar colors - update your drawAdherenceChart function to use these */
+.chart-taken {
+    background: linear-gradient(45deg, #d8a7ca, #b98bc0) !important;
+}
+
+.chart-missed {
+    background: linear-gradient(45deg, #e75480, #d44d76) !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .summary_section {
+        grid-template-columns: 1fr;
+    }
+    
+    .summary_title {
+        font-size: 1.5rem;
+    }
+    
+    .summary_stats {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .summary_stat_item {
+        flex: 1;
+        min-width: 140px;
+    }
+    
+    .summary_header {
+        padding: 20px;
+    }
+    
+    .stat_value {
+        font-size: 1.5rem;
+    }
+}
+
+/* Add some floating animation for visual interest */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.summary_stat_item:nth-child(1) {
+    animation: float 6s ease-in-out infinite;
+}
+
+.summary_stat_item:nth-child(2) {
+    animation: float 6s ease-in-out infinite 2s;
+}
+
+.summary_stat_item:nth-child(3) {
+    animation: float 6s ease-in-out infinite 4s;
+}

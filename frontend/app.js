@@ -1238,6 +1238,8 @@ function getNextMedicationTime(medications) {
     }
 }
 
+
+
 function calculateAdherenceRate(medications) {
     // Simple calculation - you might want to use your Log table data
     const takenMeds = medications.filter(med => 
@@ -1487,7 +1489,197 @@ if (window.location.pathname.includes("admin.html")) {
         dbEntries.textContent = "547";
     }
 }
+//===================== Adherence Summary Page =====================//
+async function apiGetAdherenceSummary(year = null, month = null) {
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        let url = `${API_BASE_URL}/api/adherence-summary`;
+        if (year && month) {
+            url += `?year=${year}&month=${month}`;
+        }
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${user.user_id}`,
+                'User-Id': user.user_id
+            }
+        });
 
+        const data = await response.json();
+        return { success: response.ok, data };
+    } catch (error) {
+        console.error('Get adherence summary error:', error);
+        return { success: false, data: { error: 'Network error. Please try again.' } };
+    }
+}
+
+// ==================== ADHERENCE SUMMARY PAGE ====================
+
+function initAdherenceSummary() {
+    if (!window.location.pathname.includes('adherence_summary.html')) {
+        return;
+    }
+
+    console.log("Initializing Adherence Summary page...");
+    
+    // Set current month in the header - FIXED
+    const now = new Date();
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"];
+    const currentMonth = monthNames[now.getMonth()];
+    const currentYear = now.getFullYear();
+    
+    const summaryMonthElement = document.getElementById('summaryMonth');
+    if (summaryMonthElement) {
+        summaryMonthElement.textContent = `${currentMonth} ${currentYear}`;
+    }
+    
+    // Load adherence data - FIXED: Use current year and month
+    loadAdherenceSummary(currentYear, now.getMonth() + 1); // Month is 1-indexed in the API
+}
+
+async function loadAdherenceSummary(year, month) {
+    try {
+        console.log(`📊 Loading adherence summary for ${year}-${month}`);
+        const result = await apiGetAdherenceSummary(year, month);
+        
+        console.log("📈 API Response:", result); // Debug log
+        
+        if (result.success) {
+            const summary = result.data.adherence_summary;
+            const monthlyData = result.data.monthly_breakdown;
+            
+            console.log("🔢 Adherence Summary Data:", summary);
+            
+            // Update the statistics - FIXED: Use actual data from API
+            document.getElementById('medTaken').textContent = summary.medicines_taken;
+            document.getElementById('medMissed').textContent = summary.medicines_missed;
+            document.getElementById('adherenceRate').textContent = `${summary.adherence_rate}%`;
+            
+            // Draw the chart
+            drawAdherenceChart(summary, monthlyData);
+        } else {
+            console.error('❌ Failed to load adherence summary:', result.data.error);
+            showNotification('Failed to load adherence data: ' + (result.data.error || 'Unknown error'), 'error');
+            
+            // Set zeros if API fails
+            document.getElementById('medTaken').textContent = '0';
+            document.getElementById('medMissed').textContent = '0';
+            document.getElementById('adherenceRate').textContent = '0%';
+        }
+    } catch (error) {
+        console.error('💥 Error loading adherence summary:', error);
+        showNotification('Error loading adherence data', 'error');
+        
+        // Set zeros on error
+        document.getElementById('medTaken').textContent = '0';
+        document.getElementById('medMissed').textContent = '0';
+        document.getElementById('adherenceRate').textContent = '0%';
+    }
+}
+
+// Temporary debug function - call this in browser console
+async function debugAdherenceAPI() {
+    const now = new Date();
+    const result = await apiGetAdherenceSummary(now.getFullYear(), now.getMonth() + 1);
+    console.log("🔍 DEBUG API RESPONSE:", result);
+    
+    if (result.success) {
+        console.log("📊 Adherence Summary:", result.data.adherence_summary);
+        console.log("📅 Monthly Breakdown:", result.data.monthly_breakdown);
+    } else {
+        console.error("❌ API Error:", result.data.error);
+    }
+    return result;
+}
+
+function drawAdherenceChart(summary, monthlyData) {
+    const canvas = document.getElementById("adherenceChart");
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext("2d");
+    
+    // Set canvas size
+    canvas.width = 600;
+    canvas.height = 300;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // If no data, show message
+    if (summary.total_due_medications === 0) {
+        ctx.font = "16px Arial";
+        ctx.fillStyle = "#8b5f8d";
+        ctx.textAlign = "center";
+        ctx.fillText("No adherence data available", canvas.width / 2, canvas.height / 2);
+        return;
+    }
+    
+    // Bar positions and dimensions
+    const barWidth = 120;
+    const spacing = 80;
+    const baseLine = 250;
+    const maxValue = Math.max(summary.medicines_taken, summary.medicines_missed);
+    const scale = 180 / Math.max(maxValue, 1); // Avoid division by zero
+    
+    // New pastel colors
+    const takenColor = "#d8a7ca"; // Soft pink-purple
+    const missedColor = "#e75480"; // Soft pink-red
+    const textColor = "#8b5f8d"; // Deep purple-pink
+    
+    // Draw bars function
+    function drawBar(x, height, color, label, value) {
+        // Draw bar with gradient
+        const gradient = ctx.createLinearGradient(x, baseLine - height, x, baseLine);
+        if (color === takenColor) {
+            gradient.addColorStop(0, '#d8a7ca');
+            gradient.addColorStop(1, '#b98bc0');
+        } else {
+            gradient.addColorStop(0, '#e75480');
+            gradient.addColorStop(1, '#d44d76');
+        }
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, baseLine - height, barWidth, height);
+        
+        // Add bar shadow
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 4;
+        ctx.fillRect(x, baseLine - height, barWidth, height);
+        ctx.shadowColor = 'transparent'; // Reset shadow
+        
+        // Draw label
+        ctx.font = "16px Arial";
+        ctx.fillStyle = textColor;
+        ctx.textAlign = "center";
+        ctx.fillText(label, x + barWidth / 2, baseLine + 25);
+        
+        // Draw value
+        ctx.fillText(value.toString(), x + barWidth / 2, baseLine - height - 10);
+    }
+    
+    // Draw taken bar
+    const takenHeight = summary.medicines_taken * scale;
+    drawBar(120, takenHeight, takenColor, "Taken", summary.medicines_taken);
+    
+    // Draw missed bar
+    const missedHeight = summary.medicines_missed * scale;
+    drawBar(120 + barWidth + spacing, missedHeight, missedColor, "Missed", summary.medicines_missed);
+    
+    // Draw adherence rate text
+    ctx.font = "bold 20px Arial";
+    ctx.fillStyle = textColor;
+    ctx.textAlign = "center";
+    ctx.fillText(`Adherence Rate: ${summary.adherence_rate}%`, canvas.width / 2, 30);
+    
+    // Draw total medications text
+    ctx.font = "14px Arial";
+    ctx.fillStyle = "#a87fa8";
+    ctx.fillText(`Total Due Medications: ${summary.total_due_medications}`, canvas.width / 2, 55);
+}
 // ==================== DOCTORS HELPER FUNCTIONS ====================
 
 let doctors = [];
@@ -2125,6 +2317,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initSmoothScrolling();
     initMyMedicationsPage();
     initMyDoctorsPage();
+    initAdherenceSummary();
 
 
 

@@ -26,7 +26,7 @@ CORS(app,
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'Hussain.23',
+    'password': 'azka.123',
     'database': 'SmartHealthReminder'
 }
 
@@ -837,6 +837,7 @@ def get_today_medications():
     except Exception as e:
         print(f"💥 Unexpected error in get_today_medications: {str(e)}")
         return jsonify({"success": False, "error": f"Unexpected error: {str(e)}"}), 500
+    
 @app.route('/api/my-medications/search', methods=['GET'])
 def search_my_medications():
     user_id = get_authenticated_user_id()
@@ -1137,6 +1138,85 @@ def delete_doctor(doctor_id):
     except Error as e:
         connection.rollback()
         print(f"Database error: {str(e)}")
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.route('/api/adherence-summary', methods=['GET'])
+def get_adherence_summary():
+    user_id = get_authenticated_user_id()
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    print(f"🔍 Calculating adherence for user {user_id}")  # Debug log
+    
+    # Get optional month and year parameters
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    
+    print(f"📅 Requested period: {year}-{month}")  # Debug log
+    
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({"error": "Database connection failed"}), 500
+    
+    try:
+        cursor = connection.cursor(dictionary=True)
+        
+        # Build date filter for specific month/year if provided
+        date_filter = ""
+        params = [user_id]
+        if year and month:
+            date_filter = "AND YEAR(r.reminder_time) = %s AND MONTH(r.reminder_time) = %s"
+            params.extend([year, month])
+        
+        # Query to get adherence data
+        query = f"""
+            SELECT 
+                COUNT(CASE WHEN r.reminder_time <= NOW() THEN 1 END) as total_due_reminders,
+                COUNT(CASE WHEN r.status = 'Completed' AND r.reminder_time <= NOW() THEN 1 END) as completed_reminders,
+                COUNT(CASE WHEN r.status = 'Pending' AND r.reminder_time < NOW() THEN 1 END) as missed_reminders,
+                COUNT(CASE WHEN r.status = 'Pending' AND r.reminder_time > NOW() THEN 1 END) as future_reminders
+            FROM Medicine m
+            INNER JOIN Reminder r ON m.medicine_id = r.medicine_id
+            WHERE m.client_id = %s
+            {date_filter}
+        """
+        
+        print(f"📊 Executing query: {query}")  # Debug log
+        print(f"📋 With params: {params}")  # Debug log
+        
+        cursor.execute(query, params)
+        adherence_data = cursor.fetchone()
+        
+        print(f"📈 Raw adherence data: {adherence_data}")  # Debug log
+        
+        total_due = adherence_data['total_due_reminders'] or 0
+        completed = adherence_data['completed_reminders'] or 0
+        missed = adherence_data['missed_reminders'] or 0
+        
+        # Calculate adherence rate
+        adherence_rate = 0
+        if total_due > 0:
+            adherence_rate = round((completed / total_due) * 100, 1)
+        
+        print(f"🎯 Calculated: total_due={total_due}, completed={completed}, missed={missed}, rate={adherence_rate}%")
+        
+        return jsonify({
+            "success": True,
+            "adherence_summary": {
+                "total_due_medications": total_due,
+                "medicines_taken": completed,
+                "medicines_missed": missed,
+                "adherence_rate": adherence_rate,
+                "future_medications": adherence_data['future_reminders'] or 0
+            },
+            "monthly_breakdown": []  # Simplified for now
+        }), 200
+        
+    except Error as e:
+        print(f"💥 Database error in adherence summary: {str(e)}")
         return jsonify({"error": f"Database error: {str(e)}"}), 500
     finally:
         cursor.close()
@@ -1613,6 +1693,8 @@ def dashboard_stats():
     })
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+
 
 # ------------------ Feature Flags ------------------
 @app.route('/api/feature-status', methods=['GET'])
