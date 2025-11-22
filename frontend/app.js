@@ -1,5 +1,5 @@
 // ==================== API CONFIGURATION ====================
-const API_BASE_URL = '';
+const API_BASE_URL = 'http://127.0.0.1:5000';
 
 // API Functions for backend communication
 async function apiSignup(userData) {
@@ -1056,7 +1056,7 @@ function attachMedicationActionListeners() {
     document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const medicineId = this.getAttribute('data-id');
-            deleteMedication(medicineId);
+            deleteMedicine(medicineId);
         });
     });
 }
@@ -1066,7 +1066,7 @@ async function editMedication(medicineId) {
     window.location.href = `medicine_schedule.html?action=edit&id=${medicineId}`;
 }
 
-async function deleteMedication(medicineId) {
+async function deleteMedicine(medicineId) {
     if (!confirm('Are you sure you want to delete this medication?')) {
         return;
     }
@@ -2167,6 +2167,33 @@ document.addEventListener('DOMContentLoaded', function () {
             window.location.href = 'medicine_schedule.html';
         });
     });
+
+    // Add Medication button
+    const addMedicationBtn = document.getElementById('add-medication-btn');
+    if (addMedicationBtn) {
+        addMedicationBtn.addEventListener('click', function() {
+            // Redirect or open modal for adding medication
+            window.location.href = 'my_medications.html';
+        });
+    }
+
+    // Add Doctor button
+    const addDoctorBtn = document.getElementById('add-doctor-btn');
+    if (addDoctorBtn) {
+        addDoctorBtn.addEventListener('click', function() {
+            // Redirect or open modal for adding doctor
+            window.location.href = 'doctors.html';
+        });
+    }
+
+    // Search Medications button
+    const searchMedicationsBtn = document.getElementById('search-medications-btn');
+    if (searchMedicationsBtn) {
+        searchMedicationsBtn.addEventListener('click', function() {
+            // Redirect or open modal for searching medications
+            window.location.href = 'my_medications.html';
+        });
+    }
 });
 // SAMPLE DATA (You can replace these with real values)
 const medicinesTaken = 24;

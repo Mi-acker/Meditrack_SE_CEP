@@ -7,17 +7,18 @@ from datetime import datetime, timedelta
 import os
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
-app.secret_key = 'your-secret-key-here'  # Change this to a random secret key
+app.secret_key = 'a_very_long_and_random_string_for_meditrack_2025'  # Change this to a random secret key
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_SECURE'] = True  # Set to True in production with HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 CORS(app, 
      resources={
          r"/*": {
-             "origins": ["http://localhost:5000","http://127.0.0.1:5000"],
+             "origins": ["http://localhost:5000","http://127.0.0.1:5000","null"],
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
              "allow_headers": ["Content-Type", "Authorization", "User-id"],
              "supports_credentials": True
+             
          }
      })  # Enable CORS for all routes
 
@@ -25,7 +26,7 @@ CORS(app,
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'azka.123',
+    'password': 'Hussain.23',
     'database': 'SmartHealthReminder'
 }
 
