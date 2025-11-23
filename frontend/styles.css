@@ -3576,3 +3576,19 @@ header {
 .summary_stat_item:nth-child(3) {
     animation: float 6s ease-in-out infinite 4s;
 }
+
+
+/* Quick action icons */
+.action-card .action-icon::before {
+    font-size: 20px;
+}
+#add-medication-btn .action-icon::before { content: "➕"; }
+#add-doctor-btn .action-icon::before { content: "👨‍⚕️"; }
+#search-medications-btn .action-icon::before { content: "🔍"; }
+
+/* Motivational quote icons */
+.quote-icon::before {
+    content: "💫";
+    font-size: 18px;
+    margin-right: 10px;
+}
