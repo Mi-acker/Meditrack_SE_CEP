@@ -1295,7 +1295,7 @@ def admin_list_users():
         return jsonify({'error': 'Database connection failed'}), 500
     try:
         cursor = connection.cursor(dictionary=True)
-        cursor.execute("SELECT user_id as id, name, email, role FROM User ORDER BY user_id DESC")
+        cursor.execute("SELECT user_id as id, name, email, role FROM User WHERE role!='admin' ORDER BY user_id DESC ")
         users = cursor.fetchall()
         return jsonify({'success': True, 'users': users}), 200
     except Error as e:
@@ -1306,35 +1306,35 @@ def admin_list_users():
         connection.close()
 
 
-@app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
-def admin_update_user(user_id):
-    if not require_admin():
-        return jsonify({'error': 'Admin privileges required'}), 403
+# @app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
+# def admin_update_user(user_id):
+#     if not require_admin():
+#         return jsonify({'error': 'Admin privileges required'}), 403
 
-    data = request.json or {}
-    name = data.get('name')
-    email = data.get('email')
-    role = data.get('role')
+#     data = request.json or {}
+#     name = data.get('name')
+#     email = data.get('email')
+#     role = data.get('role')
 
-    if not name or not email or not role:
-        return jsonify({'error': 'name, email, and role are required'}), 400
+#     if not name or not email or not role:
+#         return jsonify({'error': 'name, email, and role are required'}), 400
 
-    connection = get_db_connection()
-    if not connection:
-        return jsonify({'error': 'Database connection failed'}), 500
+#     connection = get_db_connection()
+#     if not connection:
+#         return jsonify({'error': 'Database connection failed'}), 500
 
-    try:
-        cursor = connection.cursor()
-        cursor.execute("UPDATE User SET name=%s, email=%s, role=%s WHERE user_id=%s", (name, email, role, user_id))
-        connection.commit()
-        return jsonify({'success': True, 'message': 'User updated'}), 200
-    except Error as e:
-        connection.rollback()
-        print('admin_update_user error:', e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        cursor.close()
-        connection.close()
+#     try:
+#         cursor = connection.cursor()
+#         cursor.execute("UPDATE User SET name=%s, email=%s, role=%s WHERE user_id=%s", (name, email, role, user_id))
+#         connection.commit()
+#         return jsonify({'success': True, 'message': 'User updated'}), 200
+#     except Error as e:
+#         connection.rollback()
+#         print('admin_update_user error:', e)
+#         return jsonify({'error': str(e)}), 500
+#     finally:
+#         cursor.close()
+#         connection.close()
 
 
 @app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
@@ -1642,25 +1642,24 @@ def dashboard_stats():
     if not user_id:
         return jsonify({'success': False, 'message': 'Not authenticated'}), 401
 
-    import mysql.connector
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
     # Active medications
-    cursor.execute("SELECT COUNT(*) AS count FROM medications WHERE user_id=%s AND is_active=1", (user_id,))
+    cursor.execute("SELECT COUNT(*) AS count FROM medicine WHERE user_id=%s AND is_active=1", (user_id,))
     active_medications = cursor.fetchone()['count']
 
     # Upcoming doses today
     cursor.execute("""
-        SELECT COUNT(*) AS count FROM reminders 
+        SELECT COUNT(*) AS count FROM reminder 
         WHERE user_id=%s AND DATE(reminder_time)=CURDATE() AND status='pending'
     """, (user_id,))
     upcoming_doses = cursor.fetchone()['count']
 
     # Next dose
     cursor.execute("""
-        SELECT m.name, r.reminder_time FROM reminders r
-        JOIN medications m ON r.medication_id = m.id
+        SELECT m.name, r.reminder_time FROM reminder r
+        JOIN medicine m ON r.medicine_id = m.id
         WHERE r.user_id=%s AND r.status='pending' AND r.reminder_time > NOW()
         ORDER BY r.reminder_time ASC LIMIT 1
     """, (user_id,))

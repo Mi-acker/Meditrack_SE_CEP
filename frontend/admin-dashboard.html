@@ -23,7 +23,6 @@
         <li onclick="showSection('reminders', this)"><i class="fas fa-bell"></i> Manage Reminders</li>
         <li onclick="showSection('logs', this)"><i class="fas fa-file-medical"></i> View Logs</li>
         <li onclick="showSection('reports', this)"><i class="fas fa-chart-bar"></i> Reports</li>
-        <li onclick="showSection('settings', this)"><i class="fas fa-cog"></i> Settings</li>
         <li onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</li>
       </ul>
     </div>
@@ -47,10 +46,6 @@
           <div class="card glass">
             <h3 id="stat-meds">310</h3>
             <p>Total Medicines</p>
-          </div>
-          <div class="card glass">
-            <h3 id="stat-uptime">98%</h3>
-            <p>Uptime</p>
           </div>
         </div>
       </section>
@@ -85,17 +80,13 @@
             <label for="newMedDose">Dosage</label>
             <input id="newMedDose" type="text" placeholder="Enter dosage" />
           </div>
-          <div class="form-group-med">
-            <label for="newMedStock">Stock (optional)</label>
-            <input id="newMedStock" type="number" placeholder="Enter stock" />
-          </div>
           <button type="submit" class="add-btn">Add Medicine</button>
         </form>
 
         <h2 style="margin-top:20px;">Existing Medicines</h2>
         <table id="medTable" class="data-table" style="margin-top:10px;">
           <thead>
-            <tr><th>ID</th><th>Name</th><th>Dosage</th><th>Stock</th><th>Actions</th></tr>
+            <tr><th>ID</th><th>Name</th><th>Dosage</th><th>Notes</th><th>Actions</th></tr>
           </thead>
           <tbody>
             <!-- medicines loaded from server -->
@@ -106,23 +97,6 @@
       <!-- REMINDERS -->
       <section id="reminders" class="section" style="display:none;">
         <h1>Manage Reminders</h1>
-
-        <!-- Add reminder -->
-        <form id="addReminderForm" class="form" onsubmit="event.preventDefault(); addReminder();">
-          <div class="form-group-med">
-            <label>User</label>
-            <input id="remUser" type="text" placeholder="User name or ID" />
-          </div>
-          <div class="form-group-med">
-            <label>Medicine</label>
-            <input id="remMed" type="text" placeholder="Medicine name" />
-          </div>
-          <div class="form-group-med">
-            <label>Reminder Time</label>
-            <input id="remTime" type="datetime-local" />
-          </div>
-          <button type="submit" class="add-btn">Add Reminder</button>
-        </form>
 
         <h2 style="margin-top:20px;">Active Reminders</h2>
         <table id="remTable" class="data-table" style="margin-top:10px;">
@@ -164,33 +138,6 @@
           </div>
         </div>
       </section>
-
-      <!-- SETTINGS -->
-      <section id="settings" class="section" style="display:none;">
-        <h1>Settings</h1>
-          <form class="form settings-form" onsubmit="event.preventDefault(); updateSettings();">
-            <div class="form-row">
-              <label for="settingName">Admin Display Name</label>
-              <input id="settingName" type="text" placeholder="Admin name" />
-            </div>
-
-            <div class="form-row">
-              <label for="settingEmail">Notification Email</label>
-              <input id="settingEmail" type="email" placeholder="admin@example.com" />
-            </div>
-
-            <div class="form-row">
-              <label for="feature_claude_haiku">Enable Claude Haiku 4.5 for all clients</label>
-              <input id="feature_claude_haiku" type="checkbox" />
-            </div>
-
-            <div class="form-actions settings-actions" style="margin-top:12px;">
-              <button type="submit" class="btn btn-primary">Save Settings</button>
-            </div>
-          </form>
-      </section>
-    </div>
-  </div>
 
   <!-- Modals (Users) -->
   <div id="userEditModal" class="modal">
@@ -237,11 +184,6 @@
       <div class="form-group-med">
         <label for="medEditDose">Dosage</label>
         <input id="medEditDose" type="text" />
-      </div>
-
-      <div class="form-group-med">
-        <label for="medEditStock">Stock</label>
-        <input id="medEditStock" type="number" />
       </div>
 
       <div class="form-actions" style="margin-top:12px; display:flex; gap:10px;">
@@ -591,31 +533,31 @@
       document.getElementById('stat-reminders').textContent = remCount;
     }
 
-    async function updateSettings() {
-      const name = document.getElementById('settingName').value.trim();
-      const email = document.getElementById('settingEmail').value.trim();
-      const enabled = document.getElementById('feature_claude_haiku').checked;
+    // async function updateSettings() {
+    //   const name = document.getElementById('settingName').value.trim();
+    //   const email = document.getElementById('settingEmail').value.trim();
+    //   const enabled = document.getElementById('feature_claude_haiku').checked;
 
-      try {
-        const res = await fetch('/api/admin/feature', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ key: 'claude_haiku_4_5', value: enabled ? '1' : '0' })
-        });
+    //   try {
+    //     const res = await fetch('/api/admin/feature', {
+    //       method: 'POST',
+    //       headers: { 'Content-Type': 'application/json' },
+    //       credentials: 'include',
+    //       body: JSON.stringify({ key: 'claude_haiku_4_5', value: enabled ? '1' : '0' })
+    //     });
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to save feature flag');
-        }
+    //     if (!res.ok) {
+    //       const err = await res.json().catch(() => ({}));
+    //       throw new Error(err.error || 'Failed to save feature flag');
+    //     }
 
-        const result = await res.json();
-        alert(`Settings saved\nName: ${name}\nEmail: ${email}\nClaude Haiku 4.5: ${result.value === '1' ? 'Enabled' : 'Disabled'}`);
-      } catch (e) {
-        console.error('Error saving settings:', e);
-        alert('Failed to save settings: ' + e.message);
-      }
-    }
+    //     const result = await res.json();
+    //     alert(`Settings saved\nName: ${name}\nEmail: ${email}\nClaude Haiku 4.5: ${result.value === '1' ? 'Enabled' : 'Disabled'}`);
+    //   } catch (e) {
+    //     console.error('Error saving settings:', e);
+    //     alert('Failed to save settings: ' + e.message);
+    //   }
+    // }
 
     async function loadFeatureStatus() {
       try {
@@ -796,7 +738,7 @@
         loadReminders();
         loadLogs();
         loadReports();
-        loadFeatureStatus();
+        // loadFeatureStatus();
       });
     } else {
       loadUsers();
@@ -804,7 +746,7 @@
       loadReminders();
       loadLogs();
       loadReports();
-      loadFeatureStatus();
+      // loadFeatureStatus();
     }
   </script>
   
