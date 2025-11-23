@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meditrack - User Dashboard</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="dashboard-container">
@@ -48,7 +49,6 @@
             <!-- Stats Cards -->
             <div class="stats-container">
                 <div class="stat-card purple">
-                    <div class="stat-icon"></div>
                     <div class="stat-content">
                         <h3>Active Medications</h3>
                         <div class="value" id="active-meds-count">5</div>
@@ -56,7 +56,6 @@
                     </div>
                 </div>
                 <div class="stat-card pink">
-                    <div class="stat-icon"></div>
                     <div class="stat-content">
                         <h3>Upcoming Doses Today</h3>
                         <div class="value" id="upcoming-doses-count">3</div>
@@ -64,7 +63,6 @@
                     </div>
                 </div>
                 <div class="stat-card cream">
-                    <div class="stat-icon"></div>
                     <div class="stat-content">
                         <h3>Adherence Rate</h3>
                         <div class="value" id="adherence-rate">92%</div>
@@ -72,19 +70,10 @@
                     </div>
                 </div>
                 <div class="stat-card purple">
-                    <div class="stat-icon"></div>
                     <div class="stat-content">
                         <h3>Next Dose</h3>
                         <div class="value" id="next-dose-time">2 hours</div> <!-- Added this -->
                         <div class="trend up">Metformin</div>
-                    </div>
-                </div>
-                <div class="stat-card purple">
-                    <div class="stat-icon"></div>
-                    <div class="stat-content">
-                        <h3>Saved Doctors</h3>
-                        <div class="value" id="doctors-count">2</div>
-                        <div class="trend up">+1 this month</div>
                     </div>
                 </div>
             </div>
@@ -146,34 +135,9 @@
                             <h3>Weekly Adherence</h3>
                             <a href="adherence_summary.html" class="view-all" data-section="adherence">Full Report</a>
                         </div>
-                        <div class="health-progress">
-                            <div class="progress-item">
-                                <div class="progress-info">
-                                    <span class="progress-label">This Week</span>
-                                    <span class="progress-value">92%</span>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill excellent"></div>
-                                </div>
-                            </div>
-                            <div class="progress-item">
-                                <div class="progress-info">
-                                    <span class="progress-label">Last Week</span>
-                                    <span class="progress-value">89%</span>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill good"></div>
-                                </div>
-                            </div>
-                            <div class="progress-item">
-                                <div class="progress-info">
-                                    <span class="progress-label">This Month</span>
-                                    <span class="progress-value">90%</span>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill excellent"></div>
-                                </div>
-                            </div>
+                        <!-- Simple Bar Chart Icon -->
+                        <div style="text-align: center; margin-top: 15px;">
+                            <i class="fas fa-chart-bar" style="font-size: 24px; color: var(--medium-purple);"></i>
                         </div>
                     </div>
 

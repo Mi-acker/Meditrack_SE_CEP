@@ -3592,3 +3592,12 @@ header {
     font-size: 18px;
     margin-right: 10px;
 }
+/* Hide empty doctor icons */
+.appointment-icon:empty {
+    display: none;
+}
+
+/* Adjust layout when icon is removed */
+.appointment-item {
+    padding-left: 15px;
+}
