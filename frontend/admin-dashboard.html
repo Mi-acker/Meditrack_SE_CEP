@@ -351,10 +351,11 @@
 
     // ========== MEDICINE actions ==========
     let currentMedRow = null;
+
+
     async function addMedicine() {
       const name = document.getElementById('newMedName').value.trim();
       const dose = document.getElementById('newMedDose').value.trim();
-      const stock = document.getElementById('newMedStock').value.trim() || '';
       if (!name || !dose) { alert('Please enter medicine name and dosage'); return; }
 
       try {
@@ -362,18 +363,16 @@
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: name, dosage: dose, notes: stock })
+          body: JSON.stringify({ name: name, dosage: dose })
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           throw new Error(err.error || 'Failed to add medicine');
         }
         const data = await res.json();
-        // reload meds from server
         await loadMeds();
         document.getElementById('newMedName').value = '';
         document.getElementById('newMedDose').value = '';
-        document.getElementById('newMedStock').value = '';
         alert('Medicine added');
       } catch (e) {
         console.error('addMedicine error', e);
@@ -381,20 +380,10 @@
       }
     }
 
-    function openMedEditModal(btn) {
-      const row = btn.closest('tr');
-      currentMedRow = row;
-      editingMedId = row.getAttribute('data-id');
-      document.getElementById('medEditName').value = row.children[1].textContent;
-      document.getElementById('medEditDose').value = row.children[2].textContent;
-      document.getElementById('medEditStock').value = row.children[3].textContent === '—' ? '' : row.children[3].textContent;
-      openAdminModal('medEditModal');
-    }
     async function saveMedEdit() {
       if (!currentMedRow || !editingMedId) return;
       const name = document.getElementById('medEditName').value.trim();
       const dose = document.getElementById('medEditDose').value.trim();
-      const notes = document.getElementById('medEditStock').value.trim();
       if (!name || !dose) { alert('Name and dosage required'); return; }
 
       try {
@@ -402,7 +391,7 @@
           method: 'PUT',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, dosage: dose, notes })
+          body: JSON.stringify({ name, dosage: dose })
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -415,6 +404,15 @@
         console.error('saveMedEdit error', e);
         alert('Failed to update medicine: ' + e.message);
       }
+    }
+
+    function openMedEditModal(btn) {
+      const row = btn.closest('tr');
+      currentMedRow = row;
+      editingMedId = row.getAttribute('data-id');
+      document.getElementById('medEditName').value = row.children[1].textContent;
+      document.getElementById('medEditDose').value = row.children[2].textContent;
+      openAdminModal('medEditModal');
     }
 
     function deleteMedicine(btn) {
@@ -441,6 +439,125 @@
         }
       };
     }
+
+
+    // async function addMedicine() {
+    //   const name = document.getElementById('newMedName').value.trim();
+    //   const dose = document.getElementById('newMedDose').value.trim();
+    //   if (!name || !dose) { alert('Please enter medicine name and dosage'); return; }
+
+    //   try {
+    //     const res = await fetch('/api/admin/medicines', {
+    //       method: 'POST',
+    //       credentials: 'include',
+    //       headers: { 'Content-Type': 'application/json' },
+    //       body: JSON.stringify({ name: name, dosage: dose, notes: stock })
+    //     });
+    //     if (!res.ok) {
+    //       const err = await res.json().catch(() => ({}));
+    //       throw new Error(err.error || 'Failed to add medicine');
+    //     }
+    //     const data = await res.json();
+    //     // reload meds from server
+    //     await loadMeds();
+    //     document.getElementById('newMedName').value = '';
+    //     document.getElementById('newMedDose').value = '';
+    //     // document.getElementById('newMedStock').value = '';
+    //     alert('Medicine added');
+    //   } catch (e) {
+    //     console.error('addMedicine error', e);
+    //     alert('Failed to add medicine: ' + e.message);
+    //   }
+    // // }
+    // async function addMedicine() {
+    //   const name = document.getElementById('newMedName').value.trim();
+    //   const dose = document.getElementById('newMedDose').value.trim();
+    //   if (!name || !dose) { alert('Please enter medicine name and dosage'); return; }
+
+    //   try {
+    //     const res = await fetch('/api/admin/medicines', {
+    //       method: 'POST',
+    //       credentials: 'include',
+    //       headers: { 'Content-Type': 'application/json' },
+    //       body: JSON.stringify({ name: name, dosage: dose }) // Remove 'notes: stock' from here
+    //     });
+    //     if (!res.ok) {
+    //       const err = await res.json().catch(() => ({}));
+    //       throw new Error(err.error || 'Failed to add medicine');
+    //     }
+    //     const data = await res.json();
+    //     // reload meds from server
+    //     await loadMeds();
+    //     document.getElementById('newMedName').value = '';
+    //     document.getElementById('newMedDose').value = '';
+    //     alert('Medicine added');
+    //   } catch (e) {
+    //     console.error('addMedicine error', e);
+    //     alert('Failed to add medicine: ' + e.message);
+    //   }
+    // }
+    // function openMedEditModal(btn) {
+    //   const row = btn.closest('tr');
+    //   currentMedRow = row;
+    //   editingMedId = row.getAttribute('data-id');
+    //   document.getElementById('medEditName').value = row.children[1].textContent;
+    //   document.getElementById('medEditDose').value = row.children[2].textContent;
+    //   // document.getElementById('medEditStock').value = row.children[3].textContent === '—' ? '' : row.children[3].textContent;
+    //   openAdminModal('medEditModal');
+    // }
+   
+    // async function addMedicine() {
+    //   const name = document.getElementById('newMedName').value.trim();
+    //   const dose = document.getElementById('newMedDose').value.trim();
+    //   if (!name || !dose) { alert('Please enter medicine name and dosage'); return; }
+
+    //   try {
+    //     const res = await fetch('/api/admin/medicines', {
+    //       method: 'POST',
+    //       credentials: 'include',
+    //       headers: { 'Content-Type': 'application/json' },
+    //       body: JSON.stringify({ name: name, dosage: dose }) // Remove 'notes: stock' from here
+    //     });
+    //     if (!res.ok) {
+    //       const err = await res.json().catch(() => ({}));
+    //       throw new Error(err.error || 'Failed to add medicine');
+    //     }
+    //     const data = await res.json();
+    //     // reload meds from server
+    //     await loadMeds();
+    //     document.getElementById('newMedName').value = '';
+    //     document.getElementById('newMedDose').value = '';
+    //     alert('Medicine added');
+    //   } catch (e) {
+    //     console.error('addMedicine error', e);
+    //     alert('Failed to add medicine: ' + e.message);
+    //   }
+    // }
+
+    // function deleteMedicine(btn) {
+    //   const row = btn.closest('tr');
+    //   const id = row.getAttribute('data-id');
+    //   const name = row.children[1].textContent;
+    //   document.getElementById('confirmTitle').textContent = 'Delete Medicine';
+    //   document.getElementById('confirmMessage').textContent = `Delete medicine "${name}"? This will remove it for all users.`;
+    //   openAdminModal('confirmModal');
+    //   document.getElementById('confirmYes').onclick = async function() {
+    //     try {
+    //       const res = await fetch(`/api/admin/medicines/${id}`, { method: 'DELETE', credentials: 'include' });
+    //       if (!res.ok) {
+    //         const err = await res.json().catch(() => ({}));
+    //         throw new Error(err.error || 'Failed to delete medicine');
+    //       }
+    //       await loadMeds();
+    //       closeAdminModal('confirmModal');
+    //       alert('Medicine deleted');
+    //       updateStats();
+    //     } catch (e) {
+    //       console.error('deleteMedicine error', e);
+    //       alert('Failed to delete medicine: ' + e.message);
+    //     }
+    //   };
+    // }
 
     // ========== REMINDER actions ==========
     let currentRemRow = null;

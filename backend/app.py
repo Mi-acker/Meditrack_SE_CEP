@@ -26,7 +26,7 @@ CORS(app,
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'Hussain.23',
+    'password': 'azka.123',
     'database': 'SmartHealthReminder'
 }
 
