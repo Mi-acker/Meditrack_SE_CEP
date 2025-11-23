@@ -1109,6 +1109,7 @@ async function initDashboard() {
     // Load real data from API
     await updateDashboardStats();
     await loadTodayMedications();
+    // Mini adherence charts removed from dashboard — no call here so layout remains intact
 }
 
 function setupNavigation() {
@@ -1176,11 +1177,22 @@ async function updateDashboardStats() {
         
         // Calculate stats
         const activeMedsCount = allMedications.length;
-        const upcomingDosesCount = todayMedications.filter(med => 
-            med.status === 'Pending' || med.status === 'upcoming'
-        ).length;
-        
-        // Get next medication time
+
+        // Count upcoming doses based on scheduled time (today) and not already taken/completed
+        const now = new Date();
+        const upcomingDosesCount = todayMedications.filter(med => {
+            // ignore meds marked taken/completed
+            const status = (med.status || '').toLowerCase();
+            if (status === 'taken' || status === 'completed') return false;
+
+            const scheduled = parseTimeStringToDate(med.time);
+            if (!scheduled) return false;
+
+            // upcoming today and in the future
+            return scheduled > now && sameDay(scheduled, now);
+        }).length;
+
+        // Get next medication time (uses parsed times)
         const nextMedTime = getNextMedicationTime(todayMedications);
         
         // Safe DOM updates with null checks
@@ -1215,20 +1227,26 @@ function safeUpdateElement(elementId, content) {
 
 function getNextMedicationTime(medications) {
     const now = new Date();
-    const pendingMeds = medications.filter(med => 
-        (med.status === 'Pending' || med.status === 'upcoming') && med.time
-    );
-    
-    if (pendingMeds.length === 0) return 'None';
-    
-    // Find the next medication time
-    const nextMed = pendingMeds.sort((a, b) => new Date(a.time) - new Date(b.time))[0];
-    const medTime = new Date(nextMed.time);
-    
+
+    // Parse times and ignore already taken meds
+    const candidates = medications.map(med => {
+        const status = (med.status || '').toLowerCase();
+        if (status === 'taken' || status === 'completed') return null;
+        const scheduled = parseTimeStringToDate(med.time);
+        if (!scheduled) return null;
+        return { med, scheduled };
+    }).filter(Boolean).filter(x => x.scheduled >= now);
+
+    if (candidates.length === 0) return 'None';
+
+    candidates.sort((a, b) => a.scheduled - b.scheduled);
+    const next = candidates[0];
+    const medTime = next.scheduled;
+
     const diffMs = medTime - now;
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (diffHours > 0) {
         return `In ${diffHours}h ${diffMinutes}m`;
     } else if (diffMinutes > 0) {
@@ -1237,6 +1255,36 @@ function getNextMedicationTime(medications) {
         return 'Now';
     }
 }
+
+// Parse various time representations into a Date object (today for HH:MM formats)
+function parseTimeStringToDate(timeString) {
+    if (!timeString) return null;
+    // If it's ISO or full datetime, try direct parse
+    const direct = new Date(timeString);
+    if (!isNaN(direct.getTime())) return direct;
+
+    // If it's HH:MM or H:MM with optional AM/PM
+    const m = String(timeString).trim().match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM|am|pm))?$/);
+    if (m) {
+        let hour = parseInt(m[1], 10);
+        const minute = parseInt(m[2], 10);
+        const ampm = m[3];
+        if (ampm) {
+            const up = ampm.toUpperCase();
+            if (up === 'PM' && hour < 12) hour += 12;
+            if (up === 'AM' && hour === 12) hour = 0;
+        }
+        const d = new Date();
+        d.setHours(hour, minute, 0, 0);
+        return d;
+    }
+
+    return null;
+
+}
+
+function sameDay(d1, d2) {
+    return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate()};
 
 
 
@@ -1307,6 +1355,21 @@ function renderTodayMedications(medications) {
     attachMedicationActionListeners();
 }
 
+// Pick a small emoji for a medicine based on its name (or use `med.emoji` if provided)
+function pickEmojiForName(name) {
+    if (!name) return '💊';
+    const n = name.toString().toLowerCase();
+    if (n.includes('inhal') || n.includes('puffer')) return '🌬️';
+    if (n.includes('insulin') || n.includes('glargine') || n.includes('novolog')) return '💉';
+    if (n.includes('ibuprofen') || n.includes('naproxen') || n.includes('panadol') || n.includes('acetaminophen') || n.includes('aspirin')) return '💊';
+    if (n.includes('metformin') || n.includes('glucose') || n.includes('diabet')) return '🩺';
+    if (n.includes('eye') || n.includes('ocular')) return '👁️';
+    if (n.includes('syrup') || n.includes('susp')) return '🥄';
+    if (n.includes('cream') || n.includes('ointment')) return '🧴';
+    if (n.includes('drops')) return '💧';
+    return '💊';
+}
+
 function renderTimeSlot(timeOfDay, medications) {
     if (medications.length === 0) {
         return `
@@ -1333,10 +1396,12 @@ function renderTimeSlot(timeOfDay, medications) {
                 const buttonText = isTaken ? 'Taken' : 'Mark Taken';
                 const buttonClass = isTaken ? 'taken' : 'pending';
                 
+                const emoji = med.emoji || pickEmojiForName(med.name || med.dosage || '');
+
                 return `
                 <div class="medication-item">
                     <div class="med-info">
-                        <div class="med-icon"></div>
+                        <div class="med-icon">${emoji}</div>
                         <div>
                             <h5>${med.name}</h5>
                             <p>${med.dosage} · ${displayTime}</p>
@@ -2425,50 +2490,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Dashboard Stats ---
     function loadDashboardStats() {
+        // Non-invasive updater: only set values of existing elements (preserves layout)
         fetch('/api/dashboard-stats', { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
-                if (!data.success) return;
+                if (!data || !data.success) return;
 
-                // Update Active Medications
-                const activeMedElem = document.querySelector('.stat-card.purple .stat-content');
-                if (activeMedElem) {
-                    activeMedElem.innerHTML = `
-                        <div class="stat-title">ACTIVE MEDICATIONS</div>
-                        <div class="stat-value">${data.active_medications}</div>
-                        <div class="stat-change">+1 from last week</div>
-                    `;
-                }
+                // Active medications
+                const activeEl = document.getElementById('active-meds-count');
+                if (activeEl && data.active_medications != null) activeEl.textContent = String(data.active_medications);
 
-                // Update Upcoming Doses
-                const upcomingDoseElem = document.querySelector('.stat-card.pink .stat-content');
-                if (upcomingDoseElem) {
-                    upcomingDoseElem.innerHTML = `
-                        <div class="stat-title">UPCOMING DOSES TODAY</div>
-                        <div class="stat-value">${data.upcoming_doses}</div>
-                        <div class="stat-change">Next in 2 hours</div>
-                    `;
-                }
+                // Upcoming doses
+                const upcomingEl = document.getElementById('upcoming-doses-count');
+                if (upcomingEl && data.upcoming_doses != null) upcomingEl.textContent = String(data.upcoming_doses);
 
-                // Update Adherence Rate
-                const adherenceElem = document.querySelector('.stat-card.cream .stat-content');
-                if (adherenceElem) {
-                    adherenceElem.innerHTML = `
-                        <div class="stat-title">ADHERENCE RATE</div>
-                        <div class="stat-value">${data.adherence_rate}%</div>
-                        <div class="stat-change">+3% this week</div>
-                    `;
-                }
+                // Adherence rate
+                const adherenceEl = document.getElementById('adherence-rate');
+                if (adherenceEl && data.adherence_rate != null) adherenceEl.textContent = `${data.adherence_rate}%`;
 
-                // Update Next Dose
-                const nextDoseElem = document.querySelectorAll('.stat-card.purple .stat-content')[1];
-                if (nextDoseElem) {
-                    nextDoseElem.innerHTML = `
-                        <div class="stat-title">NEXT DOSE</div>
-                        <div class="stat-value">${data.next_dose_time !== "None" ? data.next_dose_time : "None"}</div>
-                        <div class="stat-change">${data.next_dose_name}</div>
-                    `;
+                // Next dose time
+                const nextTimeEl = document.getElementById('next-dose-time');
+                if (nextTimeEl) nextTimeEl.textContent = (data.next_dose_time && data.next_dose_time !== 'None') ? data.next_dose_time : 'None';
+
+                // Next dose name into the .trend element of the Next Dose card
+                try {
+                    const nextDoseCardTrends = document.querySelectorAll('.stat-card.purple .stat-content');
+                    if (nextDoseCardTrends && nextDoseCardTrends.length > 1) {
+                        const trendEl = nextDoseCardTrends[1].querySelector('.trend');
+                        if (trendEl) trendEl.textContent = data.next_dose_name || '';
+                    }
+                } catch (e) {
+                    // ignore if DOM shape is different
                 }
+            }).catch(err => {
+                console.warn('Could not load dashboard stats:', err);
             });
     }
 

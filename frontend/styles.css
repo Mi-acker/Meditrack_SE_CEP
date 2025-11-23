@@ -1594,6 +1594,8 @@ body {
     transition: all 0.3s ease;
     cursor: pointer;
     font-weight: 600;
+    justify-content: center; /* center the label when no icon is present */
+    text-align: center;
 }
 
 .nav-links a:hover,
@@ -1606,6 +1608,16 @@ body {
 .nav-links i {
     margin-right: 10px;
     font-size: 1.2rem;
+    display: inline-block;
+    width: 20px; /* reserve a small icon column when icons exist */
+    text-align: center;
+}
+
+/* If the <i> tag is empty (no icon), hide it so there is no extra gap */
+.nav-links i:empty {
+    display: none;
+    margin-right: 0;
+    width: 0;
 }
 
 /* Main Content */
