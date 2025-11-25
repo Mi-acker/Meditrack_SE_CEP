@@ -82,13 +82,14 @@
     </div>
     
         <!-- Add this to your medicine_schedule.html -->
-    <div id="medicineModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">Add New Medicine</h2>
-                <button id="closeModalBtn" class="close-btn">&times;</button>
-            </div>
-            <form id="medicineForm">
+        <div id="medicineModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header" style="background: linear-gradient(135deg, #ff6b9d, #ff8fab); color: white; border-radius: 12px 12px 0 0; padding: 20px; margin: -20px -20px 20px -20px;">
+            <h2 id="modalTitle" style="margin: 0; font-weight: 700; font-size: 1.5rem;">Add New Medicine</h2>
+            <button id="closeModalBtn" class="close-btn" style="color: white; font-size: 1.5rem;">&times;</button>
+        </div>
+        <form id="medicineForm">
+            <div class="form-row">
                 <div class="form-group">
                     <label for="medicineName">Medicine Name *</label>
                     <input type="text" id="medicineName" name="name" required>
@@ -97,6 +98,9 @@
                     <label for="medicineDosage">Dosage *</label>
                     <input type="text" id="medicineDosage" name="dosage" required>
                 </div>
+            </div>
+            
+            <div class="form-row">
                 <div class="form-group">
                     <label for="medicineStartDate">Start Date *</label>
                     <input type="date" id="medicineStartDate" name="start_date" required>
@@ -106,39 +110,45 @@
                     <input type="date" id="medicineEndDate" name="end_date">
                     <small>Leave empty for one-time medication</small>
                 </div>
+            </div>
+            
+            <div class="form-row">
                 <div class="form-group">
                     <label for="medicineTime">Time *</label>
                     <input type="time" id="medicineTime" name="time" required>
                 </div>
                 <div class="form-group">
                     <label for="medicineFrequency">Frequency</label>
-                    <select id="medicineFrequency" name="frequency">
+                    <select id="medicineFrequency" name="frequency" style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; width: 100%;">
                         <option value="one-time">One Time Only</option>
                         <option value="daily" selected>Every Day</option>
                         <option value="weekly">Every Week</option>
                         <option value="monthly">Every Month</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="medicinePrescriber">Prescriber</label>
-                    <select id="medicinePrescriber" name="prescriber_id">
-                        <option value="">Select a Doctor</option>
-                        <!-- Doctors will be dynamically populated here -->
-                    </select>
-                    <small><a href="doctors.html" style="color: #007bff;">Add new doctor</a></small>
-                </div>
-                <div class="form-group">
-                    <label for="medicineNotes">Notes</label>
-                    <textarea id="medicineNotes" name="notes" rows="3"></textarea>
-                </div>
-                <div class="form-actions">
-                    <button type="button" id="cancelBtn" class="btn-secondary">Cancel</button>
-                    <button type="submit" id="submitBtn" class="btn-primary">Add Medicine</button>
-                </div>
-            </form>
-        </div>
+            </div>
+            
+            <div class="form-group" style="border: none; padding: 0;">
+                <label for="medicinePrescriber">Prescriber</label>
+                <select id="medicinePrescriber" name="prescriber_id" style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; width: 100%;">
+                    <option value="">Select a Doctor</option>
+                    <!-- Doctors will be dynamically populated here -->
+                </select>
+                <small><a href="doctors.html" style="color: #f278b5;">Add new doctor</a></small>
+            </div>
+            
+            <div class="form-group" style="border: none; padding: 0;">
+                <label for="medicineNotes">Notes</label>
+                <textarea id="medicineNotes" name="notes" rows="3" style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; width: 100%;"></textarea>
+            </div>
+            
+            <div class="form-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" id="cancelBtn" class="btn-secondary" style="padding: 12px 24px; border: 2px solid #ff6b9d; background: white; color: #ff6b9d; border-radius: 8px; cursor: pointer; transition: all 0.3s ease;">Cancel</button>
+                <button type="submit" id="submitBtn" class="btn-primary" style="padding: 12px 24px; background: linear-gradient(135deg, #ff6b9d, #ff8fab); color: white; border: none; border-radius: 8px; cursor: pointer; transition: all 0.3s ease;">Add Medicine</button>
+            </div>
+        </form>
     </div>
-
+</div>
     <!-- Notification -->
     <div id="notification" class="notification"></div>
     <script>

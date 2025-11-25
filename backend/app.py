@@ -1635,7 +1635,6 @@ def admin_reports_summary():
     finally:
         cursor.close()
         connection.close()
-
 @app.route('/api/dashboard-stats', methods=['GET'])
 def dashboard_stats():
     user_id = get_authenticated_user_id()
@@ -1646,21 +1645,22 @@ def dashboard_stats():
     cursor = conn.cursor(dictionary=True)
 
     # Active medications
-    cursor.execute("SELECT COUNT(*) AS count FROM medicine WHERE user_id=%s AND is_active=1", (user_id,))
+    cursor.execute("SELECT COUNT(*) AS count FROM medicine WHERE client_id=%s", (user_id,))
     active_medications = cursor.fetchone()['count']
 
-    # Upcoming doses today
+    # Upcoming doses today - FIXED: Correct join column
     cursor.execute("""
-        SELECT COUNT(*) AS count FROM reminder 
-        WHERE user_id=%s AND DATE(reminder_time)=CURDATE() AND status='pending'
+        SELECT COUNT(*) AS count FROM reminder r
+        JOIN medicine m ON r.medicine_id = m.medicine_id
+        WHERE m.client_id=%s AND DATE(r.reminder_time)=CURDATE() AND r.status='pending'
     """, (user_id,))
     upcoming_doses = cursor.fetchone()['count']
 
-    # Next dose
+    # Next dose - FIXED: Correct join column
     cursor.execute("""
         SELECT m.name, r.reminder_time FROM reminder r
-        JOIN medicine m ON r.medicine_id = m.id
-        WHERE r.user_id=%s AND r.status='pending' AND r.reminder_time > NOW()
+        JOIN medicine m ON r.medicine_id = m.medicine_id
+        WHERE m.client_id=%s AND r.status='pending' AND r.reminder_time > NOW()
         ORDER BY r.reminder_time ASC LIMIT 1
     """, (user_id,))
     next_dose_row = cursor.fetchone()
@@ -1669,16 +1669,17 @@ def dashboard_stats():
         'time': str(next_dose_row['reminder_time']) if next_dose_row else None
     }
 
-    # Adherence rate (example: % of taken doses this week)
+    # Adherence rate - FIXED: Correct join column
     cursor.execute("""
         SELECT 
-            SUM(CASE WHEN status='taken' THEN 1 ELSE 0 END) AS taken,
+            SUM(CASE WHEN r.status='taken' THEN 1 ELSE 0 END) AS taken,
             COUNT(*) AS total
-        FROM reminders
-        WHERE user_id=%s AND YEARWEEK(reminder_time, 1) = YEARWEEK(CURDATE(), 1)
+        FROM reminder r
+        JOIN medicine m ON r.medicine_id = m.medicine_id
+        WHERE m.client_id=%s AND YEARWEEK(r.reminder_time, 1) = YEARWEEK(CURDATE(), 1)
     """, (user_id,))
     row = cursor.fetchone()
-    adherence_rate = int((row['taken'] / row['total']) * 100) if row['total'] else 0
+    adherence_rate = int((row['taken'] / row['total']) * 100) if row and row['total'] else 0
 
     cursor.close()
     conn.close()
@@ -1690,6 +1691,15 @@ def dashboard_stats():
         'adherence_rate': adherence_rate,
         'next_dose': next_dose
     })
+
+    return jsonify({
+        'success': True,
+        'active_medications': active_medications,
+        'upcoming_doses': upcoming_doses,
+        'adherence_rate': adherence_rate,
+        'next_dose': next_dose
+    })
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
 
