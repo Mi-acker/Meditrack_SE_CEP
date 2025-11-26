@@ -1297,7 +1297,8 @@ def admin_list_users():
         cursor = connection.cursor(dictionary=True)
         cursor.execute("SELECT user_id as id, name, email, role FROM User WHERE role!='admin' ORDER BY user_id DESC ")
         users = cursor.fetchall()
-        return jsonify({'success': True, 'users': users}), 200
+        total_user_count=len(users)
+        return jsonify({'success': True, 'users': users, 'total_user_count':total_user_count}), 200
     except Error as e:
         print('admin_list_users error:', e)
         return jsonify({'error': str(e)}), 500
@@ -1378,7 +1379,7 @@ def admin_list_medicines():
     try:
         cursor = connection.cursor(dictionary=True)
         cursor.execute("""
-            SELECT m.medicine_id AS id, m.client_id, m.name, m.dosage, m.note AS notes,
+            SELECT m.medicine_id AS id, m.client_id, m.name, m.dosage,
                    u.name AS client_name
             FROM Medicine m
             LEFT JOIN User u ON m.client_id = u.user_id
@@ -1402,7 +1403,7 @@ def admin_add_medicine():
     data = request.json or {}
     name = data.get('name')
     dosage = data.get('dosage')
-    notes = data.get('notes')
+    # notes = data.get('notes')
     client_id = data.get('client_id')  # optional, may be null for global medicines
 
     if not name or not dosage:
@@ -1415,8 +1416,8 @@ def admin_add_medicine():
     try:
         cursor = connection.cursor()
         cursor.execute(
-            "INSERT INTO Medicine (client_id, name, dosage, note) VALUES (%s, %s, %s, %s)",
-            (client_id, name, dosage, notes)
+            "INSERT INTO Medicine (client_id, name, dosage) VALUES (%s, %s, %s)",
+            (client_id, name, dosage)
         )
         medicine_id = cursor.lastrowid
         connection.commit()
@@ -1438,7 +1439,7 @@ def admin_update_medicine(medicine_id):
     data = request.json or {}
     name = data.get('name')
     dosage = data.get('dosage')
-    notes = data.get('notes')
+    # notes = data.get('notes')
 
     if not name or not dosage:
         return jsonify({'error': 'name and dosage are required'}), 400
@@ -1450,8 +1451,8 @@ def admin_update_medicine(medicine_id):
     try:
         cursor = connection.cursor()
         cursor.execute(
-            "UPDATE Medicine SET name=%s, dosage=%s, note=%s WHERE medicine_id=%s",
-            (name, dosage, notes, medicine_id)
+            "UPDATE Medicine SET name=%s, dosage=%s, WHERE medicine_id=%s",
+            (name, dosage, medicine_id)
         )
         connection.commit()
         return jsonify({'success': True, 'message': 'Medicine updated'}), 200

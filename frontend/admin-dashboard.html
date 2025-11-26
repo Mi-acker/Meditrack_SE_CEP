@@ -86,7 +86,7 @@
         <h2 style="margin-top:20px;">Existing Medicines</h2>
         <table id="medTable" class="data-table" style="margin-top:10px;">
           <thead>
-            <tr><th>ID</th><th>Name</th><th>Dosage</th><th>Notes</th><th>Actions</th></tr>
+            <tr><th>ID</th><th>Name</th><th>Dosage</th><th>Actions</th></tr>
           </thead>
           <tbody>
             <!-- medicines loaded from server -->
@@ -642,10 +642,8 @@
 
     function updateStats() {
       // update small summary stats from current table counts
-      const usersCount = document.querySelectorAll('#usersTable tbody tr').length;
       const medCount = document.querySelectorAll('#medTable tbody tr').length;
       const remCount = document.querySelectorAll('#remTable tbody tr').length;
-      document.getElementById('stat-users').textContent = usersCount;
       document.getElementById('stat-meds').textContent = medCount;
       document.getElementById('stat-reminders').textContent = remCount;
     }
@@ -676,19 +674,19 @@
     //   }
     // }
 
-    async function loadFeatureStatus() {
-      try {
-        const res = await fetch('/api/feature-status', { credentials: 'include' });
-        if (!res.ok) return;
-        const flags = await res.json();
-        const val = flags && (flags['claude_haiku_4_5'] || flags['claude_haiku_4.5'] || flags['claude_haiku']) || '0';
-        const enabled = val === '1' || val === 'true' || val === true;
-        const el = document.getElementById('feature_claude_haiku');
-        if (el) el.checked = enabled;
-      } catch (e) {
-        console.error('Could not load feature status', e);
-      }
-    }
+    // async function loadFeatureStatus() {
+    //   try {
+    //     const res = await fetch('/api/feature-status', { credentials: 'include' });
+    //     if (!res.ok) return;
+    //     const flags = await res.json();
+    //     const val = flags && (flags['claude_haiku_4_5'] || flags['claude_haiku_4.5'] || flags['claude_haiku']) || '0';
+    //     const enabled = val === '1' || val === 'true' || val === true;
+    //     const el = document.getElementById('feature_claude_haiku');
+    //     if (el) el.checked = enabled;
+    //   } catch (e) {
+    //     console.error('Could not load feature status', e);
+    //   }
+    // }
 
     // Load users for the admin users table
     async function loadUsers() {
@@ -716,6 +714,9 @@
             tbody.appendChild(tr);
           });
         }
+        // Use the actual count from backend API response
+        const actualUserCount = users.length; // This gets the count from the API response
+        document.getElementById('stat-users').textContent = actualUserCount;
         updateStats();
       } catch (e) {
         console.error('loadUsers error', e);
@@ -743,7 +744,7 @@
           meds.forEach(m => {
             const tr = document.createElement('tr');
             tr.setAttribute('data-id', m.id);
-            tr.innerHTML = `<td>${m.id}</td><td>${escapeHtml(m.name || '')}</td><td>${escapeHtml(m.dosage || '')}</td><td>${escapeHtml(m.notes || '')}</td>
+            tr.innerHTML = `<td>${m.id}</td><td>${escapeHtml(m.name || '')}</td><td>${escapeHtml(m.dosage || '')}</td>
               <td>
                 <button class="edit-btn" onclick="openMedEditModal(this)">Edit</button>
                 <button class="delete-btn" onclick="deleteMedicine(this)">Delete</button>
